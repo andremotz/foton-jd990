@@ -133,6 +133,12 @@ int main(int argc, char **argv) {
     CHECK(jd990_dt1_retarget(msg, (size_t)n, 6, 0, moved, sizeof moved) < 0);    /* nie in den Speicher */
     CHECK(jd990_system_mode_dt1(1, moved, sizeof moved) == 12 && moved[5] == 0 && moved[9] == 1);
     CHECK(jd990_system_mode_dt1(2, moved, sizeof moved) < 0);                   /* RHYTHM nie */
+    /* Device-ID (Unit # 17–32) gilt für alle erzeugten Nachrichten */
+    CHECK(jd990_set_device_id(0x0F) < 0 && jd990_set_device_id(0x20) < 0);
+    CHECK(jd990_set_device_id(0x13) == 0 && jd990_device_id() == 0x13);
+    CHECK(jd990_system_mode_dt1(0, moved, sizeof moved) == 12 && moved[2] == 0x13);
+    CHECK(jd990_rq1_temp_patch(moved, sizeof moved) > 0 && moved[2] == 0x13);
+    CHECK(jd990_set_device_id(0x10) == 0);
     jd990_patch_free(tp);
     jd990_perf_free(pf);
 

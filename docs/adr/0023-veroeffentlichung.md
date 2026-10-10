@@ -32,7 +32,8 @@
 * **CI:** `.github/workflows/ci.yml` enthält Rust (Clippy, Tests, C-Smoke) und einen
   macOS-App-Build. Die GitLab-CI bleibt für das private Repo.
 * **Vor oder kurz nach der Veröffentlichung:**
-  * Device ID einstellbar machen (heute fest 17);
+  * ~~Device ID einstellbar machen~~ — erledigt 2026-10-10 („Unit #" in der Tab-Leiste,
+    gespeichert; FFI `jd990_set_device_id`);
   * englische Oberfläche als Option;
   * signiertes und notarisiertes macOS-Release (Apple-Entwicklerkonto) oder
     zunächst „nur aus dem Quellcode".

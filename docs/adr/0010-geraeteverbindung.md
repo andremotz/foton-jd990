@@ -14,7 +14,8 @@ Stack off. SysEx wird über die Device ID adressiert, nicht über den Kanal.
 
 ## Entscheidung
 
-* Standard-Port ist **„Unitor8/AMT8 Port 2"** mit Device ID `0x10`. Andere Ports
+* Standard-Port ist **„Unitor8/AMT8 Port 2"** mit Device ID `0x10`. Seit 2026-10-10
+  ist die ID als „Unit #" 17–32 wählbar und wird gespeichert (für andere Geräte/Nutzer). Andere Ports
   werden nicht angesprochen (Test- und Nachtläufe: ausschließlich Port 2).
 * Die App **verbindet sich beim Start selbst**, liest den Temp-Patch und
   startet den Abgleich. Fehlt der Port (Interface aus), versucht sie es alle 2 s

@@ -39,6 +39,8 @@ Model::Model() : current (jd990_patch_new())
         jd990_param_info (i, &p.info);
         all.push_back (p);
     }
+    if (auto* s = settings())      // gespeicherte Unit # (Standard 17 ≙ 0x10)
+        jd990_set_device_id ((uint8_t) (0x10 + juce::jlimit (17, 32, s->getIntValue ("unitNumber", 17)) - 17));
     for (uint32_t i = 0; i < jd990_perf_param_count(); ++i)
     {
         PerfParam p { i, {}, perfText (i, 0), perfText (i, 1), perfText (i, 2) };
@@ -389,6 +391,17 @@ void Model::toggleLinked (int t)
 {
     if (linked.count (t) && linked.size() > 1 && t != tone) linked.erase (t);
     else linked.insert (t);
+    changed();
+}
+
+void Model::setUnitNumber (int unit)
+{
+    unit = juce::jlimit (17, 32, unit);
+    if (unit == unitNumber()) return;
+    jd990_set_device_id ((uint8_t) (0x10 + unit - 17));
+    if (auto* s = settings()) { s->setValue ("unitNumber", unit); s->saveIfNeeded(); }
+    status (u ("Unit # ") + juce::String (unit) + u (" (SysEx-ID ") + juce::String::toHexString (jd990_device_id()).toUpperCase() + u ("h)"));
+    if (link.isOpen()) checkDeviceMode();   // mit der neuen ID neu lesen
     changed();
 }
 

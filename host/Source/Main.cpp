@@ -39,6 +39,7 @@ public:
     //   --undo=<n>                nach --set n-mal rückgängig machen
     //   --lock=<Gruppe>           Gruppe für Variation/Morph sperren (mehrfach möglich, vor --variation)
     //   --history                 Undo-Verlauf am Ende auf stdout ausgeben
+    //   --unit=<17-32>            Unit # / SysEx-Device-ID (wird gespeichert, außer im --testmode)
     //   --perf                    Performance-Modus (offline: Init-Setup) · --part=<1-7> Part wählen
     //   --perfset=<id>:<1-8|->:<wert>  Performance-/Part-Parameter setzen (nach --perf)
     //   --send                    nach --set den ganzen Patch senden („An Gerät senden“)
@@ -137,6 +138,7 @@ public:
             for (int i = 0; i < undos; ++i) mc->undo();
             if (send) mc->sendToDevice();
         });
+        if (auto unit = value ("--unit").getIntValue(); unit >= 17 && unit <= 32) mc->getModel().setUnitNumber (unit);
         bool history = args.contains ("--history");
         juce::StringArray perfSets;
         for (auto& a : args) if (a.startsWith ("--perfset=")) perfSets.add (a.fromFirstOccurrenceOf ("=", false, false));

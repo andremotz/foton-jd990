@@ -31,6 +31,9 @@ typedef struct {
 } Jd990ParamInfo;
 
 uint32_t    jd990_spec_version(void);
+/* SysEx-Device-ID aller erzeugten Nachrichten: 0x10–0x1F (am Gerät „Unit #“ 17–32), Standard 0x10 */
+int32_t     jd990_set_device_id(uint8_t id);
+uint8_t     jd990_device_id(void);
 
 Jd990Patch *jd990_patch_new(void);
 Jd990Patch *jd990_patch_init(void);                                   /* Init-Patch aus der Spec */

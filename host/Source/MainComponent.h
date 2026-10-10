@@ -59,7 +59,10 @@ private:
     juce::TextButton hearBtn { juce::String::fromUTF8 ("▶ Hören") };
     juce::ComboBox hearWhat, hearChannel, zoomBox;
     juce::TextButton patchModeBtn { "Patch" }, perfModeBtn { "Performance" }, partBtn[7];
+    juce::ComboBox unitBox;            // Unit # des JD-990 (SysEx-Device-ID)
     int topHeight = 46;
+    juce::Rectangle<int> stripArea;    // eigene Zeile für Modus/Parts/Zoom, wenn neben den Tabs kein Platz ist
+    bool laidOutForPerf = false;
     std::vector<int> sounding;          // aktuell gehaltene Noten
     void hear (bool down);
 

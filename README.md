@@ -74,8 +74,9 @@ The CMake build compiles the Rust core as a static library automatically.
 - Connect MIDI in **and** out; enable *Rx Exclusive* on the JD-990.
 - Pick your MIDI port in the drop-down at the top left. The app reconnects on its
   own when the interface appears.
-- The SysEx device ID is currently fixed to **17** (the JD-990's default *Unit #*).
-  A setting for other IDs is on the to-do list.
+- Set **Unit #** (next to the tabs) to the value on your JD-990 under
+  *SYSTEM › MIDI › Unit #* (default 17). It is the SysEx device ID; the editor
+  remembers it. The command line tool reads it from `JD_DEV` (decimal 16–31 = Unit 17–32).
 - The audition button plays on a selectable channel (patch mode) or on the
   selected part's channel (performance mode).
 

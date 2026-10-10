@@ -14,6 +14,7 @@
 
 use jd990_core::params::{PART_PARAMS, PATCH_PARAMS, PATCH_SIZE, PERF_PARAMS, PERF_SIZE, ParamDef, TONE_PARAMS};
 use jd990_core::sysex::{Address, DEFAULT_DEVICE, Dt1, rq1};
+use std::sync::atomic::{AtomicU8, Ordering};
 use jd990_core::{Patch, Performance, Tone};
 use std::ffi::c_char;
 
@@ -22,6 +23,29 @@ pub const E_PARSE: i32 = -2;
 pub const E_INDEX: i32 = -3;
 pub const E_RANGE: i32 = -4;
 pub const E_TONE: i32 = -5;
+
+/// SysEx-Device-ID für alle erzeugten Nachrichten (0x10–0x1F ≙ „Unit #“ 17–32 am Gerät).
+static DEVICE_ID: AtomicU8 = AtomicU8::new(DEFAULT_DEVICE);
+
+fn device() -> u8 {
+    DEVICE_ID.load(Ordering::Relaxed)
+}
+
+/// Device-ID setzen, mit der alle folgenden DT1/RQ1 erzeugt werden: 0x10–0x1F
+/// (am JD-990: SYSTEM/MIDI „Unit #“ 17–32). Andere Werte → `JD990_E_RANGE`.
+#[unsafe(no_mangle)]
+pub extern "C" fn jd990_set_device_id(id: u8) -> i32 {
+    if !(0x10..=0x1F).contains(&id) {
+        return E_RANGE;
+    }
+    DEVICE_ID.store(id, Ordering::Relaxed);
+    0
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn jd990_device_id() -> u8 {
+    device()
+}
 
 pub struct Jd990Patch(Patch);
 
@@ -114,7 +138,7 @@ pub unsafe extern "C" fn jd990_patch_equal(a: *const Jd990Patch, b: *const Jd990
 pub unsafe extern "C" fn jd990_patch_diff_dt1(from: *const Jd990Patch, to: *const Jd990Patch, out: *mut u8, cap: usize) -> i32 {
     match unsafe { (from.as_ref(), to.as_ref()) } {
         (Some(a), Some(b)) => {
-            let bytes: Vec<u8> = a.0.diff_dt1(&b.0, DEFAULT_DEVICE, Address::TEMP_PATCH).iter().flat_map(Dt1::encode).collect();
+            let bytes: Vec<u8> = a.0.diff_dt1(&b.0, device(), Address::TEMP_PATCH).iter().flat_map(Dt1::encode).collect();
             unsafe { copy_out(&bytes, out, cap) }
         }
         _ => E_NULL,
@@ -173,7 +197,7 @@ pub unsafe extern "C" fn jd990_patch_name(p: *const Jd990Patch, out: *mut c_char
 pub unsafe extern "C" fn jd990_patch_to_syx(p: *const Jd990Patch, area: u8, number: u8, out: *mut u8, cap: usize) -> i32 {
     let Some(p) = (unsafe { p.as_ref() }) else { return E_NULL };
     let Some(base) = patch_base(area, number) else { return E_RANGE };
-    unsafe { copy_out(&p.0.to_syx(DEFAULT_DEVICE, base), out, cap) }
+    unsafe { copy_out(&p.0.to_syx(device(), base), out, cap) }
 }
 
 #[unsafe(no_mangle)]
@@ -290,7 +314,7 @@ pub unsafe extern "C" fn jd990_patch_set(p: *mut Jd990Patch, index: u32, tone: i
     let mut trial = p.0.clone();
     let Ok((offset, bytes)) = trial.set(d, t, value) else { return E_RANGE };
     jd990_core::rules::apply_after_set(&mut trial, d, t);
-    let msg = Dt1 { device: DEFAULT_DEVICE, address: Address::TEMP_PATCH.offset(offset), data: bytes }.encode();
+    let msg = Dt1 { device: device(), address: Address::TEMP_PATCH.offset(offset), data: bytes }.encode();
     if out.is_null() || cap < msg.len() {
         return msg.len() as i32;
     }
@@ -334,7 +358,7 @@ pub unsafe extern "C" fn jd990_param_format(index: u32, raw: u16, out: *mut c_ch
 /// `out` hat Platz für `cap` Bytes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn jd990_rq1_temp_patch(out: *mut u8, cap: usize) -> i32 {
-    unsafe { copy_out(&rq1(DEFAULT_DEVICE, Address::TEMP_PATCH, PATCH_SIZE), out, cap) }
+    unsafe { copy_out(&rq1(device(), Address::TEMP_PATCH, PATCH_SIZE), out, cap) }
 }
 
 // ── Bibliothek (M5) ──────────────────────────────────────────────────────────
@@ -544,7 +568,7 @@ pub unsafe extern "C" fn jd990_patch_variation(base: *const Jd990Patch, amount: 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn jd990_rq1_patch(area: u8, number: u8, out: *mut u8, cap: usize) -> i32 {
     let Some(at) = patch_base(area, number) else { return E_RANGE };
-    unsafe { copy_out(&rq1(DEFAULT_DEVICE, at, PATCH_SIZE), out, cap) }
+    unsafe { copy_out(&rq1(device(), at, PATCH_SIZE), out, cap) }
 }
 
 /// Tone kopieren: neuer Patch, in dem Tone `from` (0–3) nach `to` kopiert ist —
@@ -618,7 +642,7 @@ pub unsafe extern "C" fn jd990_system_mode_dt1(mode: u8, out: *mut u8, cap: usiz
     if mode > 1 {
         return E_RANGE;
     }
-    let msg = Dt1 { device: DEFAULT_DEVICE, address: Address::SYSTEM, data: vec![mode] }.encode();
+    let msg = Dt1 { device: device(), address: Address::SYSTEM, data: vec![mode] }.encode();
     unsafe { copy_out(&msg, out, cap) }
 }
 
@@ -628,7 +652,7 @@ pub unsafe extern "C" fn jd990_system_mode_dt1(mode: u8, out: *mut u8, cap: usiz
 /// `out` hat Platz für `cap` Bytes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn jd990_rq1_system(out: *mut u8, cap: usize) -> i32 {
-    unsafe { copy_out(&rq1(DEFAULT_DEVICE, Address::SYSTEM, 38), out, cap) }
+    unsafe { copy_out(&rq1(device(), Address::SYSTEM, 38), out, cap) }
 }
 
 /// RQ1 für eine Performance: `area` 1 = Temp (number 0), 5 = Internal (0–15).
@@ -642,7 +666,7 @@ pub unsafe extern "C" fn jd990_rq1_performance(area: u8, number: u8, out: *mut u
         (5, 0..=15) => Address::internal_performance(number),
         _ => return E_RANGE,
     };
-    unsafe { copy_out(&rq1(DEFAULT_DEVICE, at, PERF_SIZE), out, cap) }
+    unsafe { copy_out(&rq1(device(), at, PERF_SIZE), out, cap) }
 }
 
 pub struct Jd990Performance(Performance);
@@ -775,7 +799,7 @@ pub unsafe extern "C" fn jd990_perf_set_name(p: *mut Jd990Performance, name: *co
     let (Some(p), Some(name)) = (unsafe { p.as_mut() }, unsafe { cstr(name) }) else { return E_NULL };
     let mut trial = p.0.clone();
     let (off, data) = trial.set_name(&name);
-    let msg = Dt1 { device: DEFAULT_DEVICE, address: Address::TEMP_PERFORMANCE.offset(off), data }.encode();
+    let msg = Dt1 { device: device(), address: Address::TEMP_PERFORMANCE.offset(off), data }.encode();
     if out.is_null() || cap < msg.len() {
         return msg.len() as i32;
     }
@@ -809,7 +833,7 @@ pub unsafe extern "C" fn jd990_perf_set(p: *mut Jd990Performance, index: u32, pa
     };
     let mut trial = p.0.clone();
     let Ok((offset, data)) = trial.set(d, pt, value) else { return E_RANGE };
-    let msg = Dt1 { device: DEFAULT_DEVICE, address: Address::TEMP_PERFORMANCE.offset(offset), data }.encode();
+    let msg = Dt1 { device: device(), address: Address::TEMP_PERFORMANCE.offset(offset), data }.encode();
     if out.is_null() || cap < msg.len() {
         return msg.len() as i32;
     }
@@ -863,7 +887,7 @@ pub unsafe extern "C" fn jd990_perf_to_syx(p: *const Jd990Performance, area: u8,
         (5, 0..=15) => Address::internal_performance(number),
         _ => return E_RANGE,
     };
-    unsafe { copy_out(&p.0.to_syx(DEFAULT_DEVICE, base), out, cap) }
+    unsafe { copy_out(&p.0.to_syx(device(), base), out, cap) }
 }
 
 /// DT1 (Temp-Performance), die `from` auf dem Gerät in `to` überführen.
@@ -873,7 +897,7 @@ pub unsafe extern "C" fn jd990_perf_to_syx(p: *const Jd990Performance, area: u8,
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn jd990_perf_diff_dt1(from: *const Jd990Performance, to: *const Jd990Performance, out: *mut u8, cap: usize) -> i32 {
     let (Some(a), Some(b)) = (unsafe { from.as_ref() }, unsafe { to.as_ref() }) else { return E_NULL };
-    let bytes: Vec<u8> = a.0.diff_dt1(&b.0, DEFAULT_DEVICE, Address::TEMP_PERFORMANCE).iter().flat_map(Dt1::encode).collect();
+    let bytes: Vec<u8> = a.0.diff_dt1(&b.0, device(), Address::TEMP_PERFORMANCE).iter().flat_map(Dt1::encode).collect();
     unsafe { copy_out(&bytes, out, cap) }
 }
 

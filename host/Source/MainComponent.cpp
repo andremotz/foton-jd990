@@ -77,6 +77,11 @@ MainComponent::MainComponent (bool autoConnectAtStart, const juce::String& libra
         b->setColour (juce::TextButton::buttonOnColourId, theme::toneOn);
         addAndMakeVisible (b);
     }
+    for (int unit = 17; unit <= 32; ++unit) unitBox.addItem ("Unit " + juce::String (unit), unit);
+    unitBox.setSelectedId (model.unitNumber(), juce::dontSendNotification);
+    unitBox.setTooltip (u ("SysEx-Device-ID — muss zum JD-990 passen: SYSTEM › MIDI › Unit # (Standard 17)"));
+    unitBox.onChange = [this] { model.setUnitNumber (unitBox.getSelectedId()); };
+    addAndMakeVisible (unitBox);
     patchModeBtn.setTooltip (u ("Patch-Modus — bei Verbindung wird auch das Gerät umgeschaltet"));
     perfModeBtn.setTooltip (u ("Performance-Modus: 7 Parts, je eigener Patch und MIDI-Kanal — bei Verbindung wird auch das Gerät umgeschaltet und gelesen"));
     patchModeBtn.onClick = [this] { if (model.perfMode()) model.setMode (0); };
@@ -200,6 +205,8 @@ void MainComponent::changeListenerCallback (juce::ChangeBroadcaster*)
         partBtn[p].setTooltip (perf ? u ("Part ") + juce::String (p + 1) + u (": „") + model.partPatchName (p) + u ("“ · Kanal ") + juce::String (model.partChannel (p)) : juce::String());
     }
     sendBtn.setButtonText (perf ? u ("Setup senden") : u ("An Gerät senden"));
+    unitBox.setSelectedId (model.unitNumber(), juce::dontSendNotification);
+    if (perf != laidOutForPerf) resized();   // Part-Knöpfe brauchen Platz
     sendBtn.setTooltip (perf ? u ("Performance + Part-Patches 1–7 an das Gerät (Gerät muss im Performance-Modus sein)") : juce::String());
     syncState.setColour (juce::Label::textColourId, model.syncColour);
 }
@@ -218,6 +225,11 @@ void MainComponent::paint (juce::Graphics& g)
     g.fillRect (getLocalBounds().removeFromTop (topHeight));
     g.setColour (theme::edge);
     g.drawHorizontalLine (topHeight, 0, (float) getWidth());
+    if (! stripArea.isEmpty())
+    {
+        g.setColour (theme::panel.darker (0.15f));
+        g.fillRect (stripArea);
+    }
 }
 
 void MainComponent::resized()
@@ -251,18 +263,32 @@ void MainComponent::resized()
     auto bottom = a.removeFromBottom (24).reduced (10, 0);
     syncState.setBounds (bottom.removeFromRight (bottom.getWidth() / 2));
     status.setBounds (bottom);
+    // Unit # · Patch|Performance · Part 1–7 · Zoom: rechts neben den Tabs, wenn Platz ist —
+    // sonst (großer Zoom, schmales Fenster) in einer eigenen Zeile über den Tabs
+    bool perf = model.perfMode();
+    int ctrlW = 92 + 12 + 64 + 2 + 104 + (perf ? 12 + 7 * 30 : 0) + 16 + 90 + 10;
+    int tabsW = 0;
+    for (int i = 0; i < tabs.getNumTabs(); ++i)
+        if (auto* b = tabs.getTabbedButtonBar().getTabButton (i)) tabsW += b->getBestTabLength (30);
+    bool ownRow = a.getWidth() - tabsW - 24 < ctrlW;
+    stripArea = ownRow ? a.removeFromTop (32) : juce::Rectangle<int>();
     tabs.setBounds (a);
-    // Zoom rechts in der Tab-Leiste (dort ist Platz); liegt über den Tabs
-    zoomBox.setBounds (a.getRight() - 10 - 90, a.getY() + 3, 90, 24);
-    zoomBox.toFront (false);
-    // davor: Part 1–7 (nur Performance-Modus) und Modus-Umschalter
+    int y = ownRow ? stripArea.getY() + 4 : a.getY() + 3;
+    zoomBox.setBounds (getWidth() - 10 - 90, y, 90, 24);
     int x = zoomBox.getX() - 16;
-    for (int p = 6; p >= 0; --p) { x -= 30; partBtn[p].setBounds (x, a.getY() + 3, 28, 24); partBtn[p].toFront (false); }
-    x -= 12;
-    perfModeBtn.setBounds (x - 104, a.getY() + 3, 104, 24);
-    patchModeBtn.setBounds (x - 104 - 64, a.getY() + 3, 62, 24);
-    perfModeBtn.toFront (false);
-    patchModeBtn.toFront (false);
+    for (int p = 6; p >= 0; --p)
+    {
+        if (perf) x -= 30;
+        partBtn[p].setBounds (x, y, 28, 24);
+    }
+    if (perf) x -= 12;
+    perfModeBtn.setBounds (x - 104, y, 104, 24);
+    patchModeBtn.setBounds (x - 104 - 64, y, 62, 24);
+    unitBox.setBounds (patchModeBtn.getX() - 12 - 92, y, 92, 24);
+    for (auto* c : { (juce::Component*) &unitBox, (juce::Component*) &patchModeBtn, (juce::Component*) &perfModeBtn, (juce::Component*) &zoomBox })
+        c->toFront (false);
+    for (auto& b : partBtn) b.toFront (false);
+    laidOutForPerf = perf;
 }
 
 // ── ZoomHost ─────────────────────────────────────────────────────────────────

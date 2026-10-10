@@ -139,6 +139,9 @@ public:
 
     // ── Gerät ────────────────────────────────────────────────────────────────
     DeviceLink link;
+    /** „Unit #“ des JD-990 (SYSTEM › MIDI), 17–32 ≙ SysEx-Device-ID 0x10–0x1F. Gespeichert. */
+    int unitNumber() const { return jd990_device_id() - 0x10 + 17; }
+    void setUnitNumber (int unit);
     bool connect (const juce::String& port, bool quiet);
     void readFromDevice();
     /** Liest Internal I:11 … I:88 nacheinander (nur RQ1). `onEach` je Patch, `onDone` am Ende. */
