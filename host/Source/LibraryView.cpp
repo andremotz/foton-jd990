@@ -260,8 +260,7 @@ void LibraryView::showDetail()
                      (juce::Component*) &favBtn, (juce::Component*) &removeBtn, (juce::Component*) &abBtn })
         c->setEnabled (has);
     exportBtn.setEnabled (! selectedIds().empty());
-    deviceBtn.setEnabled (model.link.isOpen() && ! model.readingBank());
-    sendBtn.setEnabled (has && model.link.isOpen());
+    updateDeviceButtons();
     abBtn.setEnabled (has && model.hasPatch());
     morph.setEnabled (has && model.hasPatch());
     morph.setValue (0.0, juce::dontSendNotification);
@@ -432,4 +431,10 @@ void LibraryView::resized()
     notes.setBounds (right.removeFromTop (70));
     right.removeFromTop (26);
     diffView.setBounds (right);
+}
+
+void LibraryView::updateDeviceButtons()
+{
+    deviceBtn.setEnabled (model.link.isOpen() && ! model.readingBank());
+    sendBtn.setEnabled (current() != nullptr && model.link.isOpen());
 }

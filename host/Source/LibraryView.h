@@ -42,7 +42,11 @@ private:
     juce::String similarName;
     juce::String diffTitle { juce::String::fromUTF8 ("VERGLEICH MIT DEM EDITOR") };
     void listBoxItemDoubleClicked (int, const juce::MouseEvent&) override { loadSelected (false); }
-    void changeListenerCallback (juce::ChangeBroadcaster*) override { refreshDiff(); updateAB(); }
+    void changeListenerCallback (juce::ChangeBroadcaster*) override { refreshDiff(); updateAB(); updateDeviceButtons(); }
+    /** Knöpfe, die eine Geräteverbindung brauchen — bei jeder Modell-Änderung neu, denn
+        die Verbindung entsteht erst nach dem Aufbau dieser Ansicht (sonst bleibt
+        „Vom Gerät“ grau, Abendtest 2026-10-10). */
+    void updateDeviceButtons();
     void refreshDiff();          // Vergleich mit dem Editor-Patch (bei jeder Editor-Änderung)
 
     void reload();
