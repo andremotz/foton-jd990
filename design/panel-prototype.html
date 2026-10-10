@@ -1,0 +1,595 @@
+<title>JD-990 Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --page-bg:#eceae5; --page-fg:#23252a; --page-dim:#6b7078; --page-line:#d2cfc8; --page-card:#f6f5f2;
+  /* Panel — immer dunkel. Ein Hardware-Frontpanel hat keinen Light Mode. */
+  --panel:#212429; --panel-raised:#2b2f36; --panel-rail:#282c33; --panel-sunk:#15171b;
+  --panel-edge:#3a3f47;
+  --silk:#e6e2d9; --silk-dim:#8b919c; --cap:#c8c4bb; --cap-edge:#9a968e;
+  /* LCD — grün hinterleuchtet, dunkle Zeichen */
+  --lcd-lit:#a8c261; --lcd-lit-2:#8da849; --lcd-ink:#161c0e; --lcd-ink-dim:#3f4a2c;
+  --a-wg:#d9a441; --a-pitch:#5aa9d6; --a-tvf:#6cc47a; --a-tva:#d4708f;
+  --a-lfo:#9d86d9; --a-ctrl:#7f8894; --a-990:#e0603f; --a-basics:#c9cbcf;
+  --unver:#e0603f;
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --page-bg:#16181b; --page-fg:#e4e2dd; --page-dim:#8d929a; --page-line:#2e3238; --page-card:#1d2025;
+}}
+:root[data-theme="dark"]{
+  --page-bg:#16181b; --page-fg:#e4e2dd; --page-dim:#8d929a; --page-line:#2e3238; --page-card:#1d2025;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page-bg);color:var(--page-fg);
+  font-family:Barlow,system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.5}
+.wrap{max-width:1400px;margin:0 auto;padding-inline:16px;padding-block:28px 48px}
+h1{font-family:"Barlow Condensed",Barlow,sans-serif;font-weight:600;font-size:30px;
+  letter-spacing:.01em;margin:0 0 4px;text-wrap:balance}
+.lede{color:var(--page-dim);max-width:64ch;margin:0 0 6px}
+.meta{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11.5px;
+  color:var(--page-dim);letter-spacing:.02em;margin:0 0 22px}
+
+/* ── Panel-Korpus ───────────────────────────────────────────────────────── */
+.panel{background:var(--panel);border:1px solid var(--panel-edge);border-radius:4px;
+  box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 6px 22px rgba(0,0,0,.3);
+  color:var(--silk);overflow:hidden;display:grid;grid-template-columns:auto 1fr}
+.main{min-width:0;display:flex;flex-direction:column}
+
+/* ── Seitenteil, schräg abgesetzt (JD-800-Zitat) ────────────────────────── */
+.railedge{background:linear-gradient(180deg,#4a5059,#343941);display:flex}
+.rail{background:var(--panel-rail);width:196px;min-height:100%;padding:0 14px 16px;
+  box-shadow:1px 0 0 rgba(255,255,255,.04) inset}
+.rail h3{margin:0 -14px 12px -14px;padding:6px 14px;
+  font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.14em;
+  font-size:10.5px;font-weight:600;color:#1a1c20;background:var(--a-basics)}
+.railgrid{display:flex;flex-wrap:wrap;gap:6px 4px}
+
+/* ── Kopf mit Display ───────────────────────────────────────────────────── */
+.head{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;
+  padding:13px 14px;background:var(--panel-raised);border-bottom:1px solid var(--panel-edge)}
+.ctl{display:flex;flex-direction:column;gap:8px;flex:1 1 auto;min-width:210px}
+.ctlrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+
+/* ── LCD ────────────────────────────────────────────────────────────────── */
+.lcd{position:relative;flex:1 1 330px;min-width:300px;max-width:460px;
+  background:#0d0f0c;padding:7px;border-radius:3px;
+  border:1px solid #050604;box-shadow:0 2px 6px rgba(0,0,0,.6)}
+.screen{position:relative;overflow:hidden;border-radius:1px;padding:9px 11px 10px;
+  background:
+    radial-gradient(120% 150% at 22% 12%,rgba(255,255,255,.22),transparent 62%),
+    linear-gradient(168deg,var(--lcd-lit),var(--lcd-lit-2));
+  box-shadow:0 0 18px rgba(150,190,80,.22),0 1px 3px rgba(0,0,0,.5) inset;
+  color:var(--lcd-ink);font-family:"IBM Plex Mono",ui-monospace,monospace}
+/* Pixelraster */
+.screen::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:repeating-linear-gradient(0deg,rgba(0,0,0,.018) 0 1px,transparent 1px 5px);
+  mix-blend-mode:multiply}
+.l1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  font-size:15px;font-weight:600;letter-spacing:.12em}
+.l1 .slot{font-size:11px;font-weight:500;letter-spacing:.06em;color:var(--lcd-ink-dim)}
+.l2{font-size:10px;letter-spacing:.16em;color:var(--lcd-ink-dim);margin-top:5px;
+  text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.l3{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:1px}
+.l3 .pl{font-size:13px;letter-spacing:.09em;font-weight:500;text-transform:uppercase;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.l3 .pv{font-size:21px;font-weight:600;letter-spacing:.03em;font-variant-numeric:tabular-nums;
+  white-space:nowrap}
+.bargraph{display:flex;gap:2px;margin-top:7px;height:7px}
+.bargraph i{flex:1;background:rgba(22,28,14,.16);border-radius:.5px}
+.bargraph i.on{background:var(--lcd-ink)}
+.lcdtag{position:absolute;right:11px;top:9px}
+
+.lbl{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;
+  letter-spacing:.11em;font-size:10.5px;color:var(--silk-dim);font-weight:500}
+
+/* ── Waveform: ein Dropdown, an genau einer Stelle (in WG) ─────────────── */
+.wavesel{width:172px;background:var(--panel-sunk);border:1px solid var(--panel-edge);
+  border-radius:2px;color:var(--silk);font-family:"IBM Plex Mono",monospace;font-size:11.5px;
+  padding:6px 7px;letter-spacing:.02em}
+.wavesel:hover{border-color:#525862}
+.wavesel:focus-visible{outline:2px solid #6ea8ff;outline-offset:2px}
+.ww{width:172px}
+button{font:inherit;color:inherit;cursor:pointer}
+.btn{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.09em;
+  font-size:11px;font-weight:500;background:var(--panel-sunk);color:var(--silk-dim);
+  border:1px solid var(--panel-edge);border-radius:2px;padding:6px 11px}
+.btn:hover{color:var(--silk);border-color:#525862}
+.btn[aria-pressed="true"]{background:var(--silk);color:#16181b;border-color:var(--silk)}
+.btn:focus-visible,.fader:focus-visible,.enum:focus-visible,.tone:focus-visible{
+  outline:2px solid #6ea8ff;outline-offset:2px}
+.tones{display:flex;gap:5px}
+.tone{width:38px;height:30px;font-family:"Barlow Condensed",sans-serif;font-size:14px;
+  font-weight:600;letter-spacing:.06em;background:var(--panel-sunk);color:var(--silk-dim);
+  border:1px solid var(--panel-edge);border-radius:2px}
+.tone[aria-pressed="true"]{background:#e8c05a;color:#1a1c20;border-color:#e8c05a;
+  box-shadow:0 0 10px rgba(232,192,90,.3)}
+.tone.linked:not([aria-pressed="true"]){border-color:#8a6d28;color:#c9a44a}
+
+/* ── Fader-Wand ─────────────────────────────────────────────────────────── */
+.wall{display:grid;gap:1px;background:var(--panel-edge);
+  grid-template-columns:repeat(auto-fit,minmax(178px,1fr))}
+.grp{background:var(--panel);padding:0 0 10px}
+.grp>h3{margin:0 0 10px;padding:6px 10px;font-family:"Barlow Condensed",sans-serif;
+  text-transform:uppercase;letter-spacing:.13em;font-size:10.5px;font-weight:600;
+  color:#1a1c20;background:var(--acc,#7f8894)}
+.row{display:flex;flex-wrap:wrap;gap:4px;padding:0 8px}
+
+.fw{width:40px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.fader{width:40px;height:104px;background:transparent;border:0;padding:0;
+  position:relative;touch-action:none;cursor:ns-resize}
+.fader .track{position:absolute;left:50%;top:4px;bottom:4px;width:7px;margin-left:-3.5px;
+  background:var(--panel-sunk);border-radius:1px;
+  box-shadow:0 1px 2px rgba(0,0,0,.7) inset,0 0 0 1px #0c0e11}
+.fader .fill{position:absolute;left:50%;width:3px;margin-left:-1.5px;bottom:5px;
+  background:var(--acc,#7f8894);opacity:.55;border-radius:1px}
+.fader .cap{position:absolute;left:50%;width:26px;height:11px;margin-left:-13px;
+  background:linear-gradient(180deg,var(--cap) 0 48%,var(--cap-edge) 48% 100%);
+  border-radius:2px;box-shadow:0 1px 2px rgba(0,0,0,.6);border:1px solid #6e6a63}
+.fader .cap::after{content:"";position:absolute;left:3px;right:3px;top:5px;height:1px;
+  background:rgba(0,0,0,.45)}
+.fader:hover .cap{background:linear-gradient(180deg,#dcd8cf 0 48%,#aaa69e 48% 100%)}
+.val{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--silk);
+  font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.cap-lbl{font-family:"Barlow Condensed",sans-serif;font-size:9.5px;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--silk-dim);text-align:center;line-height:1.15;
+  min-height:22px;word-break:break-word}
+.unv{display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--unver);
+  vertical-align:1px;margin-left:3px;opacity:.85}
+.enum{width:84px;background:var(--panel-sunk);border:1px solid var(--panel-edge);
+  border-radius:2px;color:var(--silk);font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+  padding:5px 4px;text-align:center;letter-spacing:.03em}
+.enum:hover{border-color:#525862}
+.ew{width:84px}
+.scopehint{font-family:"Barlow Condensed",sans-serif;font-size:9px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--a-990);text-align:center;line-height:1.2;
+  max-width:84px;margin-top:-1px}
+
+/* ── Vergleich ──────────────────────────────────────────────────────────── */
+.cmp{padding:12px 14px 16px;display:none}
+.cmp table{width:100%;border-collapse:collapse;font-size:12px}
+.cmp th,.cmp td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--panel-edge);
+  font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.cmp th{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;font-size:10px;
+  letter-spacing:.11em;color:var(--silk-dim);font-weight:600}
+.cmp td:first-child,.cmp th:first-child{text-align:left;color:var(--silk-dim);font-family:Barlow,sans-serif}
+.cmp td.diff{color:#e8c05a}
+.cmp-scroll{overflow-x:auto}
+
+/* ── SysEx-Inspektor ────────────────────────────────────────────────────── */
+.insp{background:var(--panel-raised);border-top:1px solid var(--panel-edge);padding:11px 14px;margin-top:auto}
+.bytes{font-family:"IBM Plex Mono",monospace;font-size:13px;letter-spacing:.06em;
+  display:flex;flex-wrap:wrap;gap:4px 5px;margin-top:7px}
+.by{padding:2px 5px;border-radius:2px;background:var(--panel-sunk);color:var(--silk-dim);border:1px solid #0e1013}
+.by.addr{color:#7fc6ea;border-color:#204052}
+.by.data{color:#e8c05a;border-color:#4f3f17}
+.by.sum{color:#8fd48f;border-color:#234a23}
+.byn{font-size:8.5px;color:var(--silk-dim);display:block;text-align:center;
+  letter-spacing:.06em;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase}
+
+/* ── Notizen ────────────────────────────────────────────────────────────── */
+.notes{margin-top:26px;display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.note{background:var(--page-card);border:1px solid var(--page-line);border-radius:3px;padding:13px 15px}
+.note h4{margin:0 0 5px;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;
+  letter-spacing:.11em;font-size:11px;font-weight:600}
+.note p{margin:0;font-size:13px;color:var(--page-dim)}
+.q{border-left:3px solid var(--a-990)}
+kbd{font-family:"IBM Plex Mono",monospace;font-size:11px;background:var(--page-bg);
+  border:1px solid var(--page-line);border-radius:3px;padding:1px 4px}
+code{font-family:"IBM Plex Mono",monospace;font-size:.92em}
+
+/* Schmale Fenster: Seitenteil wird zur normalen Zeile */
+@media (max-width:900px){
+  .panel{grid-template-columns:1fr}
+  .rail{width:100%;min-height:0;padding:0 14px 14px;border-bottom:1px solid var(--panel-edge)}
+  .lcd{width:100%}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+  <h1>JD-990 Panel</h1>
+  <p class="lede">Interaktiver Entwurf der Tone-Ebene, vollständig gerendert aus
+    <code>spec/params.toml</code> — 92 Tone- und 13 Patch-Parameter. Kein Layout ist
+    handverdrahtet: ändert sich die Spec, ändert sich das Panel.</p>
+  <p class="meta">BEISPIELDATEN · Kein echter Patch · <span class="unv"></span>
+    markiert Parameter, deren Wertebereich noch nicht gegen die MIDI Implementation
+    geprüft ist (M0)</p>
+
+  <div class="panel">
+    <div class="railedge">
+      <aside class="rail">
+        <h3>Basics</h3>
+        <div class="railgrid" id="rail"></div>
+      </aside>
+    </div>
+
+    <div class="main">
+      <div class="head">
+        <div class="lcd">
+          <div class="screen">
+            <div class="l1"><span id="lcd-name">WOLKENTRAUM</span><span class="slot">INT I:24</span></div>
+            <div class="l2" id="lcd-ctx">TONE A · TVF</div>
+            <div class="l3"><span class="pl" id="lcd-lbl">CUTOFF</span><span class="pv" id="lcd-val">90</span></div>
+            <div class="bargraph" id="lcd-bar"></div>
+          </div>
+        </div>
+        <div class="ctl">
+          <div class="ctlrow">
+            <span class="lbl">Tone</span>
+            <div class="tones" id="tones"></div>
+            <button class="btn" id="link" aria-pressed="false"
+              title="Fader bewegen alle aktiven Tones relativ">Link</button>
+          </div>
+          <div class="ctlrow">
+            <button class="btn" id="raw" aria-pressed="false">Raw</button>
+            <button class="btn" id="mode" aria-pressed="false">4× Vergleich</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="wall" id="wall"></div>
+
+      <div class="cmp" id="cmp">
+        <div class="ctlrow" style="padding-bottom:10px">
+          <span class="lbl">Gruppe</span>
+          <select class="enum" id="cmpgrp" style="width:auto"></select>
+          <span class="lbl" style="letter-spacing:.04em">Abweichende Werte hervorgehoben</span>
+        </div>
+        <div class="cmp-scroll"><table id="cmptab"></table></div>
+      </div>
+
+      <div class="insp">
+        <span class="lbl">Gesendete Nachricht · DT1</span>
+        <div class="bytes" id="bytes"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <div class="note q">
+      <h4>Karten-Quellen sind gesperrt, nicht verboten</h4>
+      <p><em>CARD</em> und <em>EXP</em> stehen in der Liste, sind aber nicht wählbar —
+        Erweiterungskarten sind out of scope. Der Codec darf sie trotzdem nie
+        wegklemmen, sonst beschädigt der Editor fremde Patches. Lädst du einen Patch
+        mit Karten-Wellenform, bleibt die Quelle stehen und wird markiert.</p>
+    </div>
+    <div class="note">
+      <h4>Bedienung</h4>
+      <p>Fader ziehen, Mausrad, oder mit <kbd>Tab</kbd> anspringen und
+        <kbd>↑</kbd><kbd>↓</kbd> (<kbd>⇧</kbd> = ×10, beim Ziehen = fein).
+        <kbd>Doppelklick</kbd> setzt zurück. <em>Link</em> verschiebt alle Tones relativ.</p>
+    </div>
+    <div class="note">
+      <h4>Was hier noch gelogen ist</h4>
+      <p>Die Adressen im Inspektor sind eine plausible Annahme, keine verifizierte
+        Tabelle — deshalb steht in der Spec bei 97 von 104 Parametern
+        <code>verified&nbsp;=&nbsp;false</code>. Das klärt M0.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const SPEC = {"tone": [{"id": "tone.wg.wave_source", "offset": 0, "group": "WG", "label": "Source", "display": {"kind": "enum", "table": "wave_source"}, "verified": false}, {"id": "tone.wg.waveform", "offset": 1, "bytes": 2, "group": "WG", "label": "Waveform", "display": {"kind": "wavelist", "table": "waveforms"}, "verified": true}, {"id": "tone.wg.fxm_color", "offset": 3, "group": "990", "label": "FXM Color", "display": {"kind": "linear", "min": 1, "max": 4}, "verified": false}, {"id": "tone.wg.fxm_depth", "offset": 4, "group": "990", "label": "FXM Depth", "display": {"kind": "linear", "min": 0, "max": 100}, "verified": false}, {"id": "tone.wg.sync_slave", "offset": 5, "group": "990", "label": "Sync Slave", "display": {"kind": "enum", "table": "off_on"}, "verified": false}, {"id": "tone.wg.delay_mode", "offset": 6, "group": "990", "label": "Delay Mode", "display": {"kind": "enum", "table": "tone_delay_mode"}, "verified": false}, {"id": "tone.wg.delay_time", "offset": 7, "group": "990", "label": "Delay Time", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.wg.pitch_coarse", "offset": 8, "group": "WG", "label": "Coarse", "display": {"kind": "linear", "min": -48, "max": 48, "unit": "st"}, "verified": false}, {"id": "tone.wg.pitch_fine", "offset": 9, "group": "WG", "label": "Fine", "display": {"kind": "linear", "min": -50, "max": 50, "unit": "ct"}, "verified": false}, {"id": "tone.wg.pitch_random", "offset": 10, "group": "WG", "label": "Random", "display": {"kind": "linear", "min": 0, "max": 100}, "verified": false}, {"id": "tone.wg.key_follow", "offset": 11, "group": "WG", "label": "Key Follow", "display": {"kind": "enum", "table": "key_follow"}, "verified": false}, {"id": "tone.wg.env_depth", "offset": 12, "group": "WG", "label": "Env Depth", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.wg.bender_switch", "offset": 13, "group": "WG", "label": "Bender", "display": {"kind": "enum", "table": "off_on"}, "verified": false}, {"id": "tone.pitch_env.velo", "offset": 14, "group": "PITCH ENV", "label": "Velo", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.pitch_env.time_velo", "offset": 15, "group": "PITCH ENV", "label": "T-Velo", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.pitch_env.time_kf", "offset": 16, "group": "PITCH ENV", "label": "T-KF", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.pitch_env.level_0", "offset": 17, "group": "PITCH ENV", "label": "L0", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.pitch_env.time_1", "offset": 18, "group": "PITCH ENV", "label": "T1", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.pitch_env.level_1", "offset": 19, "group": "PITCH ENV", "label": "L1", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.pitch_env.time_2", "offset": 20, "group": "PITCH ENV", "label": "T2", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.pitch_env.sustain", "offset": 21, "group": "PITCH ENV", "label": "Sus", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.pitch_env.time_3", "offset": 22, "group": "PITCH ENV", "label": "T3", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.pitch_env.level_3", "offset": 23, "group": "PITCH ENV", "label": "L3", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.tvf.filter_mode", "offset": 24, "group": "TVF", "label": "Mode", "display": {"kind": "enum", "table": "filter_mode"}, "verified": false}, {"id": "tone.tvf.cutoff", "offset": 25, "group": "TVF", "label": "Cutoff", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": true}, {"id": "tone.tvf.resonance", "offset": 26, "group": "TVF", "label": "Resonance", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": true}, {"id": "tone.tvf.key_follow", "offset": 27, "group": "TVF", "label": "Key Follow", "display": {"kind": "enum", "table": "key_follow"}, "verified": false}, {"id": "tone.tvf.env_depth", "offset": 28, "group": "TVF", "label": "Env Depth", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.tvf_env.velo", "offset": 29, "group": "TVF ENV", "label": "Velo", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.tvf_env.time_velo", "offset": 30, "group": "TVF ENV", "label": "T-Velo", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.tvf_env.time_kf", "offset": 31, "group": "TVF ENV", "label": "T-KF", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.tvf_env.time_1", "offset": 32, "group": "TVF ENV", "label": "T1", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.tvf_env.level_1", "offset": 33, "group": "TVF ENV", "label": "L1", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.tvf_env.time_2", "offset": 34, "group": "TVF ENV", "label": "T2", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.tvf_env.level_2", "offset": 35, "group": "TVF ENV", "label": "L2", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.tvf_env.time_3", "offset": 36, "group": "TVF ENV", "label": "T3", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.tvf_env.sustain", "offset": 37, "group": "TVF ENV", "label": "Sus", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.tvf_env.time_4", "offset": 38, "group": "TVF ENV", "label": "T4", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.tvf_env.level_4", "offset": 39, "group": "TVF ENV", "label": "L4", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.tva.level", "offset": 40, "group": "TVA", "label": "Level", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": true}, {"id": "tone.tva.bias_direction", "offset": 41, "group": "TVA", "label": "Bias Dir", "display": {"kind": "enum", "table": "bias_direction"}, "verified": false}, {"id": "tone.tva.bias_point", "offset": 42, "group": "TVA", "label": "Bias Pt", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.tva.bias_level", "offset": 43, "group": "TVA", "label": "Bias Lvl", "display": {"kind": "linear", "min": -100, "max": 100}, "verified": false}, {"id": "tone.tva.pan", "offset": 44, "group": "990", "label": "Pan", "display": {"kind": "pan", "min": 0, "max": 100, "center": 50}, "verified": false}, {"id": "tone.tva.pan_key_follow", "offset": 45, "group": "990", "label": "Pan KF", "display": {"kind": "linear", "min": 0, "max": 14}, "verified": false}, {"id": "tone.tva_env.velo", "offset": 46, "group": "TVA ENV", "label": "Velo", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.tva_env.time_velo", "offset": 47, "group": "TVA ENV", "label": "T-Velo", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.tva_env.time_kf", "offset": 48, "group": "TVA ENV", "label": "T-KF", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.tva_env.time_1", "offset": 49, "group": "TVA ENV", "label": "T1", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.tva_env.level_1", "offset": 50, "group": "TVA ENV", "label": "L1", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.tva_env.time_2", "offset": 51, "group": "TVA ENV", "label": "T2", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.tva_env.level_2", "offset": 52, "group": "TVA ENV", "label": "L2", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.tva_env.time_3", "offset": 53, "group": "TVA ENV", "label": "T3", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.tva_env.sustain", "offset": 54, "group": "TVA ENV", "label": "Sus", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.tva_env.time_4", "offset": 55, "group": "TVA ENV", "label": "T4", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.common.velocity_curve", "offset": 56, "group": "TONE COMMON", "label": "Velo Curve", "display": {"kind": "linear", "min": 1, "max": 7}, "verified": false}, {"id": "tone.common.hold_control", "offset": 57, "group": "TONE COMMON", "label": "Hold", "display": {"kind": "enum", "table": "off_on"}, "verified": false}, {"id": "tone.lfo1.waveform", "offset": 58, "group": "LFO 1", "label": "Wave", "display": {"kind": "enum", "table": "lfo_waveform"}, "verified": false}, {"id": "tone.lfo1.rate", "offset": 59, "group": "LFO 1", "label": "Rate", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": true}, {"id": "tone.lfo1.delay", "offset": 60, "group": "LFO 1", "label": "Delay", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.lfo1.fade", "offset": 61, "group": "LFO 1", "label": "Fade", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.lfo1.offset", "offset": 62, "group": "LFO 1", "label": "Offset", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.lfo1.key_trigger", "offset": 63, "group": "LFO 1", "label": "K-Trig", "display": {"kind": "enum", "table": "key_trigger"}, "verified": false}, {"id": "tone.lfo1.depth_pitch", "offset": 64, "group": "LFO 1", "label": "Pitch", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.lfo1.depth_tvf", "offset": 65, "group": "LFO 1", "label": "TVF", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.lfo1.depth_tva", "offset": 66, "group": "LFO 1", "label": "TVA", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.lfo2.waveform", "offset": 67, "group": "LFO 2", "label": "Wave", "display": {"kind": "enum", "table": "lfo_waveform"}, "verified": false}, {"id": "tone.lfo2.rate", "offset": 68, "group": "LFO 2", "label": "Rate", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": true}, {"id": "tone.lfo2.delay", "offset": 69, "group": "LFO 2", "label": "Delay", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "tone.lfo2.fade", "offset": 70, "group": "LFO 2", "label": "Fade", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.lfo2.offset", "offset": 71, "group": "LFO 2", "label": "Offset", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.lfo2.key_trigger", "offset": 72, "group": "LFO 2", "label": "K-Trig", "display": {"kind": "enum", "table": "key_trigger"}, "verified": false}, {"id": "tone.lfo2.depth_pitch", "offset": 73, "group": "LFO 2", "label": "Pitch", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.lfo2.depth_tvf", "offset": 74, "group": "LFO 2", "label": "TVF", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.lfo2.depth_tva", "offset": 75, "group": "LFO 2", "label": "TVA", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.cs1.dest_1", "offset": 76, "group": "CTRL 1", "label": "Dest 1", "display": {"kind": "enum", "table": "control_dest"}, "verified": false}, {"id": "tone.cs1.depth_1", "offset": 77, "group": "CTRL 1", "label": "Depth 1", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.cs1.dest_2", "offset": 78, "group": "CTRL 1", "label": "Dest 2", "display": {"kind": "enum", "table": "control_dest"}, "verified": false}, {"id": "tone.cs1.depth_2", "offset": 79, "group": "CTRL 1", "label": "Depth 2", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.cs1.dest_3", "offset": 80, "group": "CTRL 1", "label": "Dest 3", "display": {"kind": "enum", "table": "control_dest"}, "verified": false}, {"id": "tone.cs1.depth_3", "offset": 81, "group": "CTRL 1", "label": "Depth 3", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.cs1.dest_4", "offset": 82, "group": "CTRL 1", "label": "Dest 4", "display": {"kind": "enum", "table": "control_dest"}, "verified": false}, {"id": "tone.cs1.depth_4", "offset": 83, "group": "CTRL 1", "label": "Depth 4", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.cs2.dest_1", "offset": 84, "group": "CTRL 2", "label": "Dest 1", "display": {"kind": "enum", "table": "control_dest"}, "verified": false}, {"id": "tone.cs2.depth_1", "offset": 85, "group": "CTRL 2", "label": "Depth 1", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.cs2.dest_2", "offset": 86, "group": "CTRL 2", "label": "Dest 2", "display": {"kind": "enum", "table": "control_dest"}, "verified": false}, {"id": "tone.cs2.depth_2", "offset": 87, "group": "CTRL 2", "label": "Depth 2", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.cs2.dest_3", "offset": 88, "group": "CTRL 2", "label": "Dest 3", "display": {"kind": "enum", "table": "control_dest"}, "verified": false}, {"id": "tone.cs2.depth_3", "offset": 89, "group": "CTRL 2", "label": "Depth 3", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}, {"id": "tone.cs2.dest_4", "offset": 90, "group": "CTRL 2", "label": "Dest 4", "display": {"kind": "enum", "table": "control_dest"}, "verified": false}, {"id": "tone.cs2.depth_4", "offset": 91, "group": "CTRL 2", "label": "Depth 4", "display": {"kind": "linear", "min": -50, "max": 50}, "verified": false}], "patch": [{"id": "patch.level", "offset": 16, "group": "BASICS", "label": "Level", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": true}, {"id": "patch.pan", "offset": 17, "group": "BASICS", "label": "Pan", "display": {"kind": "pan", "min": 0, "max": 100, "center": 50}, "verified": false}, {"id": "patch.analog_feel", "offset": 18, "group": "BASICS", "label": "Analog Feel", "display": {"kind": "linear", "min": 0, "max": 100}, "verified": false}, {"id": "patch.voice_prio", "offset": 19, "group": "BASICS", "label": "Priority", "display": {"kind": "enum", "table": "voice_priority"}, "verified": false}, {"id": "patch.bend_down", "offset": 20, "group": "BASICS", "label": "Bend Dn", "display": {"kind": "linear", "min": 0, "max": 48, "unit": "st"}, "verified": false}, {"id": "patch.bend_up", "offset": 21, "group": "BASICS", "label": "Bend Up", "display": {"kind": "linear", "min": 0, "max": 12, "unit": "st"}, "verified": false}, {"id": "patch.porta_sw", "offset": 26, "group": "BASICS", "label": "Portamento", "display": {"kind": "enum", "table": "off_on"}, "verified": false}, {"id": "patch.porta_mode", "offset": 27, "group": "BASICS", "label": "P-Mode", "display": {"kind": "enum", "table": "porta_mode"}, "verified": false}, {"id": "patch.porta_type", "offset": 28, "group": "BASICS", "label": "P-Type", "display": {"kind": "enum", "table": "porta_type"}, "verified": false}, {"id": "patch.porta_time", "offset": 29, "group": "BASICS", "label": "P-Time", "display": {"kind": "linear", "min": 0, "max": 127}, "verified": false}, {"id": "patch.solo_sw", "offset": 30, "group": "BASICS", "label": "Solo", "display": {"kind": "enum", "table": "off_on"}, "verified": false}, {"id": "patch.solo_legato", "offset": 31, "group": "BASICS", "label": "Legato", "display": {"kind": "enum", "table": "off_on"}, "verified": false}, {"id": "patch.octave", "offset": 117, "group": "BASICS", "label": "Octave", "display": {"kind": "enum", "table": "octave"}, "verified": false}], "enums": {"wave_source": {"values": ["INT", "CARD", "EXP"], "oos": [1, 2]}, "filter_mode": {"values": ["LPF", "BPF", "HPF"], "oos": []}, "lfo_waveform": {"values": ["TRI", "SAW", "SQR", "S&H", "RND", "TRP"], "oos": []}, "off_on": {"values": ["OFF", "ON"], "oos": []}, "bias_direction": {"values": ["UPPER", "LOWER", "U&L"], "oos": []}, "tone_delay_mode": {"values": ["NORMAL", "HOLD", "PLAY-MATE"], "oos": []}, "key_trigger": {"values": ["OFF", "ON"], "oos": []}, "control_dest": {"values": ["OFF", "PITCH", "CUTOFF", "RESONANCE", "LEVEL", "P-LFO1", "P-LFO2", "F-LFO1", "F-LFO2", "A-LFO1", "A-LFO2", "LFO1-R", "LFO2-R"], "oos": []}, "voice_priority": {"values": ["LAST", "LOUDEST"], "oos": []}, "porta_mode": {"values": ["NORMAL", "LEGATO"], "oos": []}, "porta_type": {"values": ["TIME", "RATE"], "oos": []}, "octave": {"values": ["-2", "-1", "0", "+1", "+2"], "oos": []}, "key_follow": {"values": ["-100", "-70", "-50", "-30", "-10", "0", "+10", "+20", "+30", "+40", "+50", "+70", "+100", "+120", "+150", "+200"], "oos": []}}, "waveforms": ["None", "Syn Saw 1", "Syn Saw 2", "FAT Saw", "FAT Square", "Syn Pulse1", "Syn Pulse2", "Syn Pulse3", "Syn Pulse4", "Syn Pulse5", "Pulse Mod", "Triangle", "Syn Sine", "Soft Pad", "Wire Str", "MIDI Clav", "Spark Vox1", "Spark Vox2", "Syn Sax", "Clav Wave", "Cello Wave", "BrightDigi", "Cutters", "Syn Bass", "Rad Hose", "Vocal Wave", "Wally Wave", "Brusky lp", "Digiwave", "Can Wave 1", "Can Wave 2", "EML 5th", "Wave Scan", "Nasty", "Wave Table", "Fine Wine", "Funk Bass1", "Funk Bass2", "Strat Sust", "Harp Harm", "Full Organ", "Full Draw", "Doo", "ZZZ Vox", "Org Vox", "Male Vox", "Kalimba", "Xylo", "Marim Wave", "Log Drum", "AgogoBells", "Bottle Hit", "Gamelan 1", "Gamelan 2", "Gamelan 3", "Tabla", "Pole lp", "Pluck Harp", "Nylon Str", "Hooky", "Muters", "Klack Wave", "Crystal", "Digi Bell", "FingerBell", "Digi Chime", "Bell Wave", "Org Bell", "Scrape Gut", "Start Atk", "Hellow Bs", "Piano Atk", "EP Hard", "Clear Keys", "EP Distone", "Flute Push", "Shami", "Wood Crak", "Klmba Atk", "Block", "Org Atk 1", "Org Atk 2", "Cowbell", "Sm Metal", "StrikePole", "Pizz", "Switch", "Tuba Slap", "Plink", "Plunk", "EP Atk", "TVF_Trig", "Flute Tone", "Pan Pipe", "BottleBlow", "Shaku Atk", "FlugelWave", "French", "WhiteNoise", "Pink Noise", "Pitch Wind", "Vox Noise1", "Vox Noise2", "CrunchWind", "ThroatWind", "Metal Wind", "Windago", "Anklungs", "Wind Chime", "Ac Piano 1", "SA Rhodes 1", "SA Rhodes 2", "E.Piano 1", "E.Piano 2", "Clav 1", "Organ 1", "Jazz Organ", "Pipe Organ", "Nylton GTR", "6STR GTR", "GTR HARM", "Mute GTR 1", "Pop Strat", "Stratus", "SYN GTR", " Harp 1", "Pick Bass", "E.Bass", "Fretless 1", "Upright BS", "Slap Bass 1", "Slap & Pop", "Slap Bass 2", "Slap Bass 3", "Flute 1", "Trumpet 1", "Trombone 1", "Harmon Mute1", "Alto Sax 1", "Tenor Sax 1", "Blow Pipe", "Trumpet SECT", "Strings", "SYN VOX 1", "SYN VOX 2", "Org Vox 2", "Pop Voice", "Fantasynth", "Fanta Bell", "Vibes", "Steel Drums", "MMM Vox", "Lead Wave", "Feedbackwave", "Rattles", "Tin Wave", "Spectrum 1", "Solid Kick", "Room Kick", "808 K Long", "Hard SN", "808 SN", "90's SN", "Bigshot SN", "Power SN", "Power Tom", "Closed HH1", "Closed HH2", "Open HH", "Crash Cym", "Ride Cym", "808 Claps", "Maraca", "Cabasa Up", "CabasaDown", "Slpa Cga", "Mute Cga 1", "Mute Cga 2", "Hi Conga", "Lo Conga", "Snaps", "Tambourine", "Cowbell 2", "Saw +DC", "Sqr +DC", "Pulse1 +DC", "Pulse2 +DC", "Pulse3 +DC", "Pulse4 +DC", "Pulse5 +DC", "Triangle +DC", "Sine +DC", "Loop 1", "Loop 2", "Loop 3", "Loop 4"], "group_order": ["WG", "TONE COMMON", "PITCH ENV", "TVF", "TVF ENV", "TVA", "TVA ENV", "LFO 1", "LFO 2", "CTRL 1", "CTRL 2", "990"], "bases": {"size": 92, "verified": false, "a": 118, "b": 210, "c": 302, "d": 394}, "areas": {"system": {"addr": [0, 0, 0, 0], "verified": true}, "temp_performance": {"addr": [1, 0, 0, 0], "verified": true}, "temp_patch": {"addr": [3, 0, 0, 0], "verified": true}, "temp_special": {"addr": [2, 0, 0, 0], "verified": false}}, "model_id": 87};
+const ACC = {"WG":"--a-wg","PITCH ENV":"--a-pitch","TVF":"--a-tvf","TVF ENV":"--a-tvf",
+  "TVA":"--a-tva","TVA ENV":"--a-tva","COMMON":"--a-ctrl","LFO 1":"--a-lfo","LFO 2":"--a-lfo",
+  "CTRL 1":"--a-ctrl","CTRL 2":"--a-ctrl","990":"--a-990","BASICS":"--a-basics"};
+const TONES = ["a","b","c","d"];
+const ALL = [...SPEC.tone.map(p => ({...p, block:"tone"})),
+             ...SPEC.patch.map(p => ({...p, block:"patch"}))];
+const byId = Object.fromEntries(ALL.map(p => [p.id, p]));
+
+/* ── Wertebereiche aus der Spec ableiten ─────────────────────────────────── */
+function rawMax(p){
+  const d = p.display;
+  if (d.kind === "wavelist") return SPEC.waveforms.length - 1;
+  if (d.kind === "enum") return SPEC.enums[d.table].values.length - 1;
+  if (d.kind === "pan")  return d.max;
+  if (d.kind === "raw")  return 127;
+  return Math.min(127, d.max - d.min);
+}
+function toDisplay(p, raw){
+  const d = p.display;
+  // Unbekannte Nummer = Karten-Wellenform. Nicht klemmen, benennen (R7).
+  if (d.kind === "wavelist") return SPEC.waveforms[raw] ?? ("CARD " + raw);
+  if (d.kind === "enum") return SPEC.enums[d.table].values[raw] ?? "?";
+  if (d.kind === "raw")  return String(raw);
+  if (d.kind === "pan"){
+    const v = raw - (d.center ?? 50);
+    return v === 0 ? "CENTER" : (v < 0 ? "L" : "R") + Math.abs(v);
+  }
+  const v = raw + d.min;
+  return (d.min < 0 && v > 0 ? "+" : "") + v + (d.unit ? " " + d.unit : "");
+}
+
+/* ── Zustand ─────────────────────────────────────────────────────────────── */
+const state = {tone:0, linked:new Set([0]), raw:false, compare:false,
+               last:"tone.tvf.cutoff", name:"WOLKENTRAUM"};
+const patch = {a:{}, b:{}, c:{}, d:{}, common:{}};
+(function seed(){
+  let s = 7; const rnd = () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  for (const t of TONES) for (const p of SPEC.tone){
+    const m = rawMax(p);
+    patch[t][p.id] = Math.max(0, Math.min(m, Math.round(m * (0.35 + rnd() * 0.4))));
+  }
+  for (const p of SPEC.patch){
+    const m = rawMax(p);
+    patch.common[p.id] = Math.max(0, Math.min(m, Math.round(m * (0.4 + rnd() * 0.35))));
+  }
+  for (const [t, w] of [["a", 42], ["b", 7], ["c", 128], ["d", 61]])
+    patch[t]["tone.wg.waveform"] = w;
+  patch.common["patch.level"] = 110;
+  patch.common["patch.pan"] = 50;
+})();
+const initial = JSON.parse(JSON.stringify(patch));
+const store = p => p.block === "patch" ? patch.common : patch[TONES[state.tone]];
+
+/* ── Roland-Adressarithmetik: 7 Bit je Byte ──────────────────────────────── */
+function addrAdd(base, off){
+  const a = base.slice();
+  for (let i = 3; i >= 0 && off; i--){
+    const v = a[i] + (off % 128); off = Math.floor(off / 128);
+    a[i] = v % 128; off += Math.floor(v / 128);
+  }
+  return a;
+}
+const checksum = (addr, data) => (128 - ((addr.reduce((x,y)=>x+y,0) + data) % 128)) % 128;
+const hex = n => n.toString(16).toUpperCase().padStart(2, "0");
+
+/* ── Bausteine ───────────────────────────────────────────────────────────── */
+function commit(p, raw, delta){
+  if (p.block === "patch"){
+    const m = rawMax(p);
+    patch.common[p.id] = Math.max(0, Math.min(m, Math.round(delta != null ? patch.common[p.id] + delta : raw)));
+  } else {
+    const m = rawMax(p);
+    const targets = state.linked.size > 1 ? [...state.linked] : [state.tone];
+    for (const ti of targets){
+      const t = TONES[ti];
+      const nv = delta != null ? patch[t][p.id] + delta : raw;
+      patch[t][p.id] = Math.max(0, Math.min(m, Math.round(nv)));
+    }
+  }
+  state.last = p.id; paint();
+}
+
+function faderEl(p){
+  const wrap = document.createElement("div");
+  wrap.className = "fw"; wrap.dataset.id = p.id;
+  const b = document.createElement("button");
+  b.className = "fader"; b.type = "button"; b.setAttribute("role", "slider");
+  b.setAttribute("aria-label", p.group + " " + p.label);
+  b.innerHTML = '<span class="track"></span><span class="fill"></span><span class="cap"></span>';
+  const v = document.createElement("span"); v.className = "val";
+  const l = document.createElement("span"); l.className = "cap-lbl";
+  l.innerHTML = p.label + (p.verified ? "" : '<span class="unv"></span>');
+  wrap.append(v, b, l);
+
+  const m = rawMax(p);
+  let dragFrom = null, valFrom = 0;
+  b.addEventListener("pointerdown", e => {
+    dragFrom = e.clientY; valFrom = store(p)[p.id];
+    b.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  b.addEventListener("pointermove", e => {
+    if (dragFrom == null) return;
+    const nv = valFrom + ((dragFrom - e.clientY) / 104) * m * (e.shiftKey ? 0.25 : 1);
+    if (p.block === "tone" && state.linked.size > 1) commit(p, null, nv - store(p)[p.id]);
+    else commit(p, nv);
+  });
+  const end = e => { if (dragFrom != null){ dragFrom = null; b.releasePointerCapture?.(e.pointerId); } };
+  b.addEventListener("pointerup", end); b.addEventListener("pointercancel", end);
+  b.addEventListener("dblclick", () => commit(p, (p.block === "patch" ? initial.common : initial[TONES[state.tone]])[p.id]));
+  b.addEventListener("wheel", e => { e.preventDefault(); commit(p, null, e.deltaY < 0 ? 1 : -1); }, {passive:false});
+  b.addEventListener("keydown", e => {
+    const step = e.shiftKey ? 10 : 1;
+    if (e.key === "ArrowUp")        { e.preventDefault(); commit(p, null,  step); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); commit(p, null, -step); }
+    else if (e.key === "Home")      { e.preventDefault(); commit(p, 0); }
+    else if (e.key === "End")       { e.preventDefault(); commit(p, m); }
+  });
+  return wrap;
+}
+
+function enumEl(p){
+  const tbl = SPEC.enums[p.display.table];
+  const wrap = document.createElement("div");
+  wrap.className = "ew fw"; wrap.dataset.id = p.id;
+  const v = document.createElement("span"); v.className = "val"; v.textContent = " ";
+  const sel = document.createElement("select");
+  sel.className = "enum"; sel.id = "p-" + p.id.replace(/\./g, "-");
+  sel.setAttribute("aria-label", p.group + " " + p.label);
+  tbl.values.forEach((name, i) => {
+    const o = document.createElement("option");
+    o.value = i; o.textContent = name;
+    if (tbl.oos.includes(i)){ o.dataset.oos = "1"; o.title = "Erweiterungskarten sind out of scope"; }
+    sel.append(o);
+  });
+  sel.addEventListener("change", () => commit(p, +sel.value));
+  const l = document.createElement("span"); l.className = "cap-lbl";
+  l.innerHTML = p.label + (p.verified ? "" : '<span class="unv"></span>');
+  wrap.append(v, sel, l);
+  if (tbl.oos.length){
+    const h = document.createElement("span");
+    h.className = "scopehint"; h.dataset.hint = "1";
+    h.textContent = tbl.oos.map(i => tbl.values[i]).join(" / ") + " out of scope";
+    wrap.append(h);
+  }
+  return wrap;
+}
+function waveSelectEl(p){
+  const wrap = document.createElement("div");
+  wrap.className = "ww fw"; wrap.dataset.id = p.id; wrap.style.width = "172px";
+  const v = document.createElement("span"); v.className = "val"; v.textContent = "\u00a0";
+  const sel = document.createElement("select");
+  sel.className = "wavesel"; sel.id = "p-wave";
+  sel.setAttribute("aria-label", "Waveform");
+  SPEC.waveforms.forEach((n, i) => {
+    const o = document.createElement("option");
+    o.value = i; o.textContent = String(i).padStart(3, "0") + "  " + n;
+    sel.append(o);
+  });
+  sel.addEventListener("change", () => commit(p, +sel.value));
+  const l = document.createElement("span"); l.className = "cap-lbl";
+  l.textContent = p.label;
+  wrap.append(v, sel, l);
+  return wrap;
+}
+const makeEl = p => p.display.kind === "wavelist" ? waveSelectEl(p)
+                  : p.display.kind === "enum"     ? enumEl(p) : faderEl(p);
+
+/* ── Aufbau: Seitenteil und Fader-Wand ───────────────────────────────────── */
+const rail = document.getElementById("rail");
+for (const p of SPEC.patch) rail.append(makeEl({...p, block:"patch"}));
+
+const wall = document.getElementById("wall");
+// Byte-Reihenfolge ist Sache des Codecs. Die Anzeige folgt group_order.
+const groups = SPEC.group_order.filter(g => SPEC.tone.some(p => p.group === g));
+for (const g of groups){
+  const sec = document.createElement("section");
+  sec.className = "grp";
+  sec.style.setProperty("--acc", `var(${ACC[g] || "--a-ctrl"})`);
+  const h = document.createElement("h3"); h.textContent = g === "990" ? "990 Extras" : g;
+  const row = document.createElement("div"); row.className = "row";
+  for (const p of SPEC.tone.filter(x => x.group === g && !x.internal))
+    row.append(makeEl({...p, block:"tone"}));
+  sec.append(h, row); wall.append(sec);
+}
+
+/* ── Kopfbedienung ───────────────────────────────────────────────────────── */
+const tonesEl = document.getElementById("tones");
+TONES.forEach((t, i) => {
+  const b = document.createElement("button");
+  b.className = "tone"; b.type = "button"; b.textContent = t.toUpperCase();
+  b.setAttribute("aria-pressed", i === 0);
+  b.addEventListener("click", () => {
+    if (document.getElementById("link").getAttribute("aria-pressed") === "true"){
+      if (state.linked.has(i) && state.linked.size > 1) state.linked.delete(i);
+      else state.linked.add(i);
+      if (!state.linked.has(state.tone)) state.tone = [...state.linked][0];
+    } else { state.tone = i; state.linked = new Set([i]); }
+    paint();
+  });
+  tonesEl.append(b);
+});
+document.getElementById("link").addEventListener("click", e => {
+  const on = e.currentTarget.getAttribute("aria-pressed") !== "true";
+  e.currentTarget.setAttribute("aria-pressed", on);
+  state.linked = on ? new Set([0,1,2,3]) : new Set([state.tone]);
+  if (on) state.tone = 0;
+  paint();
+});
+document.getElementById("raw").addEventListener("click", e => {
+  state.raw = e.currentTarget.getAttribute("aria-pressed") !== "true";
+  e.currentTarget.setAttribute("aria-pressed", state.raw); paint();
+});
+document.getElementById("mode").addEventListener("click", e => {
+  state.compare = e.currentTarget.getAttribute("aria-pressed") !== "true";
+  e.currentTarget.setAttribute("aria-pressed", state.compare);
+  wall.hidden = state.compare;
+  document.getElementById("cmp").style.display = state.compare ? "block" : "none";
+  paint();
+});
+
+const cmpGrp = document.getElementById("cmpgrp");
+groups.forEach(g => { const o = document.createElement("option"); o.value = g;
+  o.textContent = g === "990" ? "990 Extras" : g; cmpGrp.append(o); });
+cmpGrp.value = "TVF";
+cmpGrp.addEventListener("change", paint);
+
+function paintCompare(){
+  const ps = SPEC.tone.filter(x => x.group === cmpGrp.value && !x.internal);
+  document.getElementById("cmptab").innerHTML =
+    "<thead><tr><th>Parameter</th>" + TONES.map(t => "<th>" + t.toUpperCase() + "</th>").join("") +
+    "</tr></thead><tbody>" + ps.map(p => {
+      const vals = TONES.map(t => patch[t][p.id]);
+      const same = vals.every(v => v === vals[0]);
+      return "<tr><td>" + p.label + (p.verified ? "" : '<span class="unv"></span>') + "</td>" +
+        vals.map(v => '<td class="' + (same ? "" : "diff") + '">' +
+          (state.raw ? v : toDisplay(p, v)) + "</td>").join("") + "</tr>";
+    }).join("") + "</tbody>";
+}
+
+/* ── Display und Inspektor ───────────────────────────────────────────────── */
+function paintLcd(p, raw){
+  document.getElementById("lcd-name").textContent = state.name;
+  document.getElementById("lcd-ctx").textContent =
+    (p.block === "patch" ? "PATCH" : "TONE " + TONES[state.tone].toUpperCase()) + " · " +
+    (p.group === "990" ? "990 EXTRAS" : p.group) +
+    (p.block === "tone" && state.linked.size > 1 ? "  [LINK " + [...state.linked].map(i => TONES[i].toUpperCase()).join("") + "]" : "");
+  document.getElementById("lcd-lbl").textContent = p.label;
+  document.getElementById("lcd-val").textContent = state.raw ? raw : toDisplay(p, raw);
+  const m = rawMax(p), n = 26, on = m ? Math.round(raw / m * n) : 0;
+  document.getElementById("lcd-bar").innerHTML =
+    Array.from({length:n}, (_, i) => "<i" + (i < on ? ' class="on"' : "") + "></i>").join("");
+}
+function paintInspector(p, raw){
+  const addr = addrAdd(addrAdd(SPEC.areas.temp_patch.addr,
+                  p.block === "patch" ? 0 : SPEC.bases[TONES[state.tone]]), p.offset);
+  // Werte über 127 gehen als MSB/LSB-Paar über die Leitung, nicht als ein Byte.
+  const data = (p.bytes === 2) ? [Math.floor(raw / 128), raw % 128] : [raw];
+  const sum = checksum(addr, data.reduce((x, y) => x + y, 0));
+  const seq = [["F0",""],["41",""],["10",""],[hex(SPEC.model_id),""],["12",""],
+    ...addr.map(b => [hex(b), "addr"]), ...data.map(b => [hex(b), "data"]),
+    [hex(sum), "sum"], ["F7",""]];
+  const names = ["SysEx","Roland","Dev","JD-990","DT1","a3","a2","a1","a0",
+    ...(data.length === 2 ? ["MSB","LSB"] : ["Wert"]), "Sum","End"];
+  document.getElementById("bytes").innerHTML = seq.map(([b, cls], i) =>
+    '<span><span class="byn">' + names[i] + '</span><span class="by ' + cls + '">' + b + "</span></span>").join("");
+}
+
+/* ── Neuzeichnen ─────────────────────────────────────────────────────────── */
+function paintOne(root, p){
+  const el = root.querySelector('[data-id="' + CSS.escape(p.id) + '"]');
+  if (!el) return;
+  const raw = store(p)[p.id], m = rawMax(p);
+  if (p.display.kind === "wavelist"){
+    const sel = el.querySelector("select");
+    // Karten-Wellenform: Nummer kennt die Liste nicht -> Eintrag nachtragen,
+    // statt den Wert stillschweigend auf etwas Gültiges zu ziehen (R7).
+    if (raw >= SPEC.waveforms.length && !sel.querySelector('[value="' + raw + '"]')){
+      const o = document.createElement("option");
+      o.value = raw; o.textContent = String(raw).padStart(3, "0") + "  CARD " + raw;
+      sel.append(o);
+    }
+    sel.value = raw;
+    el.querySelector(".val").textContent = state.raw ? raw : "\u00a0";
+    return;
+  }
+  const valEl = el.querySelector(".val");
+  if (p.display.kind === "enum"){
+    const sel = el.querySelector("select"), tbl = SPEC.enums[p.display.table];
+    // Gesperrte Quellen bleiben wählbar, SOLANGE sie der aktuelle Wert sind —
+    // ein geladener Karten-Patch darf nicht stillschweigend umgebogen werden.
+    [...sel.options].forEach(o => { o.disabled = o.dataset.oos === "1" && +o.value !== raw; });
+    sel.value = raw;
+    const active = tbl.oos.includes(raw);
+    const hint = el.querySelector('[data-hint]');
+    if (hint) hint.textContent = active
+      ? "↑ Karten-Quelle · unverändert durchgereicht"
+      : tbl.oos.map(i => tbl.values[i]).join(" / ") + " out of scope";
+    valEl.textContent = state.raw ? raw : " ";
+  } else {
+    valEl.textContent = state.raw ? raw : toDisplay(p, raw);
+    const f = m ? raw / m : 0;
+    el.querySelector(".cap").style.top = (4 + (1 - f) * 88) + "px";
+    el.querySelector(".fill").style.height = (f * 88 + 4) + "px";
+  }
+}
+function paint(){
+  [...tonesEl.children].forEach((b, i) => {
+    b.setAttribute("aria-pressed", i === state.tone);
+    b.classList.toggle("linked", state.linked.has(i));
+  });
+  for (const p of SPEC.patch) paintOne(rail, {...p, block:"patch"});
+  if (!state.compare) for (const p of SPEC.tone){
+    if (!p.internal) paintOne(wall, {...p, block:"tone"});
+  }
+  const lp = {...byId[state.last], block: byId[state.last].id.startsWith("patch.") ? "patch" : "tone"};
+  const raw = store(lp)[lp.id];
+  paintLcd(lp, raw); paintInspector(lp, raw);
+  if (state.compare) paintCompare();
+}
+paint();
+</script>

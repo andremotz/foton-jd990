@@ -1,0 +1,26 @@
+# GitHub-CI (ADR-23): Rust-Kern immer, macOS-App-Build mit JUCE.
+# Hardware-Tests (HIL) laufen nie in der CI — sie brauchen einen JD-990.
+name: CI
+on: [push, pull_request]
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+      - run: sh crates/jd990-ffi/tests/c_smoke.sh
+
+  macos-app:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: git clone --depth 1 --branch 9.0.2 https://github.com/juce-framework/JUCE.git host/JUCE
+      - run: cmake -S host -B host/build -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build host/build -j 3

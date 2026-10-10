@@ -1,0 +1,14 @@
+[package]
+name = "jd990-core"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-or-later"
+description = "JD-990 Datenmodell und SysEx-Codec — kennt weder MIDI noch UI (ADR-1)"
+
+[dependencies]
+
+[build-dependencies]
+jd990-spec = { path = "../jd990-spec" }
+
+[dev-dependencies]
+proptest = "1"

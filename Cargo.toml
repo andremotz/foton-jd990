@@ -1,0 +1,4 @@
+[workspace]
+resolver = "3"
+members = ["crates/jd990-spec", "crates/jd990-core", "crates/jd990-cli", "crates/jd990-midi", "crates/jd990-ffi", "crates/jd990-library"]
+

@@ -1,0 +1,14 @@
+[package]
+name = "jd990-ffi"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-or-later"
+description = "C-ABI zu jd990-core für den JUCE-Host (ADR-2/ADR-4)"
+
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+jd990-core = { path = "../jd990-core" }
+jd990-library = { version = "0.1.0", path = "../jd990-library" }
+serde_json = "1.0.151"

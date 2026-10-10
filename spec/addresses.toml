@@ -1,0 +1,134 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  JD-990 Adresstabelle — Single Source of Truth für Bereiche und Blockgrößen
+# ─────────────────────────────────────────────────────────────────────────────
+#
+#  Quelle: Owner's Manual, MIDI Implementation v1.00 (20.01.1993),
+#          „4. Parameter address map", App. 50–56 (= PDF-Seiten 258–264).
+#  Gegengeprüft: JDTools (JDTools.cpp, BASE_ADDR_990_*) und Hardware
+#          (internes Logbuch, 2026-09-27/28).
+#
+#  Adressen: 4 Bytes à 7 Bit, MSB zuerst. Innerhalb eines Blocks ist ein
+#  Byte-Offset N die Adresse  base + (N >> 7, N & 0x7F)  — linear im 7-Bit-Raum.
+#
+#  hw = Status an der Hardware:
+#    "read"   RQ1 mit exakt `size` beantwortet
+#    "write"  zusätzlich DT1 + byteidentisches Zurücklesen
+#    ""       nicht getestet
+#
+#  scope: "edit" = der Editor bearbeitet das · "backup" = nur lesen/sichern ·
+#         "out" = außerhalb des Projektumfangs (README, Logbuch 2026-09-27)
+# ─────────────────────────────────────────────────────────────────────────────
+
+[meta]
+model_id  = 0x57
+device_id = { default = 0x10, min = 0x10, max = 0x1F, note = "Anzeige „Unit#“ minus 1 (App. 49)" }
+dt1_max_data = 256          # App. 43
+rq1_rule = "Antwort nur, wenn die Adresse eine Basisadresse trifft und size > 1 (App. 49). Über-Anfragen liefern am Ende eine falsche Prüfsumme (Hardware)."
+
+# ── Bereiche ─────────────────────────────────────────────────────────────────
+
+[[area]]
+id    = "system"
+addr  = [0x00, 0x00, 0x00, 0x00]
+size  = 38                  # „Total Size 00 00 26“ (App. 51)
+block = "system"
+scope = "backup"
+hw    = "read"
+
+[[area]]
+id    = "temp_performance"
+addr  = [0x01, 0x00, 0x00, 0x00]
+size  = 144                 # Common 48 + 8 Parts × 12 (App. 51–52)
+block = "performance_temp"
+scope = "edit"              # seit 2026-10-03 (ADR-22)
+hw    = "write"             # P0 2026-10-03: perf-sweep 91 Parameter, 0 Befunde
+
+[[area]]
+id    = "temp_performance_patch"
+addr  = [0x02, 0x00, 0x00, 0x00]
+count = 7                   # Part 1–7
+stride = [0x00, 0x01, 0x00, 0x00]
+size  = 486
+block = "patch"
+scope = "edit"              # seit 2026-10-03 (ADR-22)
+hw    = "write"             # P0: nur im PERFORMANCE-Modus beschreibbar (im Patch-Modus nur Part 1 = Temp-Patch)
+
+[[area]]
+id    = "temp_patch"
+addr  = [0x03, 0x00, 0x00, 0x00]
+size  = 486                 # „Total Size 00 03 66“ (App. 52)
+block = "patch"
+scope = "edit"
+hw    = "write"
+
+[[area]]
+id    = "temp_rhythm"
+addr  = [0x04, 0x00, 0x00, 0x00]
+size  = 6524                # „Total Size 00 32 7C“ (App. 55)
+block = "rhythm"
+scope = "out"
+hw    = ""
+
+[[area]]
+id    = "internal_performance"
+addr  = [0x05, 0x00, 0x00, 0x00]
+count = 16                  # 101–116
+stride = [0x00, 0x01, 0x00, 0x00]
+size  = 144                 # *4-2: Common 48 + 8 Parts × 12 (App. 51). NICHT 572 — das war ein
+                            # Artefakt einer Über-Anfrage; dahinter liefert das Gerät undefinierten
+                            # Speicher mit instabiler Prüfsumme (Logbuch 2026-09-28).
+block = "performance_internal"
+scope = "backup"
+hw    = "read"
+
+[[area]]
+id    = "internal_patch"
+addr  = [0x06, 0x00, 0x00, 0x00]
+count = 64                  # I-11 … I-88; Patch n bei 06 nn 00 00
+stride = [0x00, 0x01, 0x00, 0x00]
+size  = 486
+block = "patch"
+scope = "backup"            # Schreiben nur auf ausdrückliche Nutzeraktion (ADR-7)
+hw    = "read"
+
+[[area]]
+id    = "internal_rhythm"
+addr  = [0x07, 0x00, 0x00, 0x00]
+size  = 6524
+block = "rhythm"
+scope = "out"
+hw    = ""
+
+# Karte (08–0B) — Erweiterungskarten sind out of scope
+[[area]]
+id = "card_system"
+addr = [0x08, 0x00, 0x00, 0x00]
+scope = "out"
+[[area]]
+id = "card_performance"
+addr = [0x09, 0x00, 0x00, 0x00]
+count = 16
+stride = [0x00, 0x01, 0x00, 0x00]
+scope = "out"
+[[area]]
+id = "card_patch"
+addr = [0x0A, 0x00, 0x00, 0x00]
+count = 64
+stride = [0x00, 0x01, 0x00, 0x00]
+scope = "out"
+[[area]]
+id = "card_rhythm"
+addr = [0x0B, 0x00, 0x00, 0x00]
+scope = "out"
+
+# ── Blöcke innerhalb eines Patches (*4-3, App. 52) ───────────────────────────
+# Offsets sind Byte-Offsets (linear); in Klammern die 7-Bit-Adresse.
+
+[patch_layout]
+common = { offset = 0,   size = 118 }   # 00 00 00 — Patch Common & Effect
+tone_a = { offset = 118, size = 92 }    # 00 00 76
+tone_b = { offset = 210, size = 92 }    # 00 01 52
+tone_c = { offset = 302, size = 92 }    # 00 02 2E
+tone_d = { offset = 394, size = 92 }    # 00 03 0A
+# Das Gerät sendet einen Patch als 118 + 256 + 112 (erste Nachricht endet an Tone A).
+# Beim Empfang akzeptiert es dieselbe Stückelung (64/64 Round-Trip, 2026-09-28).

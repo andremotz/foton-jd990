@@ -1,0 +1,15 @@
+[package]
+name = "jd990-cli"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-or-later"
+description = "Kommandozeilenwerkzeug für den JD-990"
+
+[[bin]]
+name = "jd990"
+path = "src/main.rs"
+
+[dependencies]
+jd990-core = { path = "../jd990-core" }
+jd990-library = { version = "0.1.0", path = "../jd990-library" }
+jd990-midi = { path = "../jd990-midi" }

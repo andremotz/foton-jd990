@@ -1,0 +1,40 @@
+# ── Patch-Korpus: NICHT versionieren ────────────────────────────────────────
+# Enthält die 192 Roland-Werkspatches und Bank-Dumps aus dem Netz.
+# Lokales Testmaterial (Round-Trip-Tests, HIL-Sweep) und zugleich das Backup
+# des Geräts — aber nicht weitergebbar. Siehe docs/06-risiken.md, F3.
+corpus/
+*.syx
+*.mid
+# Ausnahme: eigene Test-Patches (mit `jd990 init` erzeugt, keine Roland-Daten)
+!host/tests/fixtures/*.syx
+
+# ── Rust ───────────────────────────────────────────────────────────────────
+/target/
+**/*.rs.bk
+# Cargo.lock wird versioniert: es gibt ein Binary-Crate (jd990-cli).
+# (Die frühere Ignore-Zeile hatte einen Inline-Kommentar und griff nie —
+#  .gitignore kennt keine Kommentare hinter Mustern.)
+
+# ── C++ / JUCE / CMake (ab M3) ─────────────────────────────────────────────
+/build/
+cmake-build-*/
+CMakeUserPresets.json
+/host/JUCE/
+
+# ── Werkzeuge & Editoren ───────────────────────────────────────────────────
+.vscode/
+.idea/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# ── macOS ──────────────────────────────────────────────────────────────────
+.DS_Store
+._*
+
+# M0-Wegwerf-Builds
+.build/
+
+# Roland-Handbuch (urheberrechtlich geschützt, lokal)
+reference/
+/host/build/
+

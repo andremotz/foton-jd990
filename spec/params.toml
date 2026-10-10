@@ -1,0 +1,742 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  JD-990 Parameter-Spezifikation — Single Source of Truth (ADR-3)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+#  Aus dieser Datei werden generiert: Rust-Structs, SysEx-Codec, Validierung,
+#  UI-Metadaten und Testfälle. Ein Parameter existiert an genau EINER Stelle.
+#  Adressbereiche und Blockgrößen stehen in addresses.toml.
+#
+#  FELDER JE PARAMETER
+#    offset    Byte-Position im Block (Tone: 0–91, Patch Common: 0–117), linear.
+#              Adresse = Blockbasis + (offset >> 7, offset & 0x7F).
+#    bytes     2 = MSB/LSB-Paar (Wert = MSB·128 + LSB). Das LSB ist eine
+#              „#“-Adresse (App. 50): ein DT1 darf dort NICHT beginnen — das
+#              Paar wird immer gemeinsam ab dem MSB geschrieben.
+#    raw       Zulässiger Rohwertbereich laut MIDI Implementation.
+#    display   Anzeige: linear (raw.min…raw.max ↦ min…max), enum, note,
+#              pan, table (→ [tables.*]), wavelist.
+#
+#  VERTRAUENSGRADE — bitte beim Bearbeiten pflegen:
+#    verified = true   Gegen die offizielle MIDI Implementation geprüft
+#                      (Owner's Manual v1.00, App. 52–54 = PDF-S. 260–262)
+#                      UND alle 64 Werkspatches liegen im Bereich.
+#    verified = false  Plausible Annahme. Für Layout brauchbar,
+#                      zum Senden an das Gerät NICHT freigegeben.
+#    Hardware-Bestätigung (HIL-Sweep, ADR-6) wird im Logbuch protokolliert.
+#
+#  Stand 2026-09-28: vollständig gegen das Handbuch abgeglichen, siehe
+#  internes Logbuch. Viele Bereiche waren vorher falsch (0–127 statt 0–100,
+#  Enum-Reihenfolgen, Key-Follow-Tabellen).
+#
+#  Feldreihenfolge und Namen ursprünglich abgeleitet aus JDTools, JD-990.hpp
+#  © 2022–2024 Johannes Schultz, BSD 3-clause
+#  https://github.com/sagamusix/JDTools
+# ─────────────────────────────────────────────────────────────────────────────
+
+[meta]
+device      = "Roland JD-990"
+model_id    = 0x57
+spec_version = 2
+
+# Basisadressen — Details und Blockgrößen in addresses.toml.
+[meta.areas]
+system            = { addr = [0x00, 0x00, 0x00, 0x00], verified = true }
+temp_performance  = { addr = [0x01, 0x00, 0x00, 0x00], verified = true }
+temp_patch        = { addr = [0x03, 0x00, 0x00, 0x00], verified = true }
+# Rhythm ist out of scope. War bis spec_version 1 fälschlich 0x02 (= Performance-
+# Temp-Patches); Handbuch App. 50 und JDTools: 0x04.
+temp_special      = { addr = [0x04, 0x00, 0x00, 0x00], verified = true }
+
+# Tone-Basisoffsets innerhalb des Patches (linear). 7-Bit-Adressen laut
+# Handbuch App. 52: A = 00 00 76, B = 00 01 52, C = 00 02 2E, D = 00 03 0A.
+# Hardware: 64/64 Patches byteidentisch über den Temp Patch (2026-09-28).
+[meta.tone_bases]
+size      = 92
+verified  = true
+a = 0x76
+b = 0xD2
+c = 0x12E
+d = 0x18A
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  ENUM-TABELLEN (Index = Rohwert)
+# ─────────────────────────────────────────────────────────────────────────────
+
+[enums.wave_source]
+verified = true
+values = ["INT", "CARD", "EXP"]
+# Erweiterungskarten sind out of scope (docs/06-risiken.md, R10). Die UI sperrt
+# diese Quellen, der CODEC NICHT: ein Patch mit Karten-Wellenform muss byte-exakt
+# durchlaufen, sonst beschädigt der Editor fremde Patches (R7). Zum Aufheben
+# genügt es, diese Zeile zu leeren.
+out_of_scope = [1, 2]
+
+[enums.off_on]
+verified = true
+values = ["OFF", "ON"]
+
+[enums.tone_delay_mode]
+verified = true
+values = ["NORMAL", "HOLD", "KEY-OFF NORMAL", "KEY-OFF DECAY", "PLAYMATE"]
+
+[enums.filter_mode]
+verified = true
+values = ["HPF", "BPF", "LPF"]          # Reihenfolge laut Handbuch — war vorher umgekehrt
+
+[enums.bias_direction]
+verified = true
+values = ["UPPER", "LOWER", "UPPER&LOWER"]
+
+[enums.lfo_waveform]
+verified = true
+values = ["TRI", "SIN", "SAW", "SQU", "TRP", "S&H", "RND", "CHS"]
+
+[enums.lfo_offset]
+verified = true
+values = ["+", "0", "-"]
+
+[enums.control_dest]
+verified = true
+# Kein „OFF“ — war vorher fälschlich an Index 0, alles um eins verschoben.
+values = ["PITCH", "CUTOFF", "RES", "LEVEL",
+          "P-LFO1", "P-LFO2", "F-LFO1", "F-LFO2",
+          "A-LFO1", "A-LFO2", "LFO1-R", "LFO2-R"]
+
+[enums.control_source]
+verified = true
+values = ["MOD", "AFTER", "EXP", "BREATH", "P.BEND", "FOOT"]
+
+# Layer/Active Tone: Bitmaske A=1, B=2, C=4, D=8
+[enums.tone_mask]
+verified = true
+values = ["OFF", "A", "B", "AB", "C", "AC", "BC", "ABC",
+          "D", "AD", "BD", "ABD", "CD", "ACD", "BCD", "ABCD"]
+
+[enums.voice_priority]
+verified = true
+values = ["LAST", "LOUDEST"]
+
+[enums.porta_mode]
+verified = true
+values = ["NORMAL", "LEGATO"]
+
+[enums.porta_type]
+verified = true
+values = ["TIME", "RATE"]
+
+[enums.solo_sync_master]
+verified = true
+values = ["OFF", "TONE-A", "TONE-B", "TONE-C", "TONE-D"]
+
+[enums.structure]
+verified = true
+values = ["TYPE-1", "TYPE-2", "TYPE-3", "TYPE-4", "TYPE-5", "TYPE-6"]
+
+[enums.velocity_range]
+verified = true
+values = ["ALL", "LOW", "HIGH"]
+
+[enums.eq_low_freq]
+verified = true
+values = ["200 Hz", "400 Hz"]
+
+[enums.eq_mid_freq]
+verified = true
+values = ["200 Hz", "250 Hz", "315 Hz", "400 Hz", "500 Hz", "630 Hz", "800 Hz",
+          "1 kHz", "1.25 kHz", "1.6 kHz", "2 kHz", "2.5 kHz", "3.15 kHz",
+          "4 kHz", "5 kHz", "6.3 kHz", "8 kHz"]
+
+[enums.eq_mid_q]
+verified = true
+values = ["0.5", "1.0", "2.0", "4.0", "9.0"]
+
+[enums.eq_high_freq]
+verified = true
+values = ["4 kHz", "8 kHz"]
+
+[enums.fx_control_dest]
+verified = true
+values = ["FX-BAL", "DS-DRV", "PH-MAN", "PH-RAT", "PH-DPT", "PH-RES", "PH-MIX",
+          "EN-MIX", "CH-RAT", "CH-FDB", "CH-LVL", "DL-FDB", "DL-LVL",
+          "RV-TIM", "RV-LVL"]
+
+# DS = Distortion, PH = Phaser, SP = Spectrum, EN = Enhancer
+[enums.group_a_sequence]
+verified = true
+values = ["DS-PH-SP-EN", "DS-PH-EN-SP", "DS-SP-PH-EN", "DS-SP-EN-PH", "DS-EN-PH-SP", "DS-EN-SP-PH",
+          "PH-DS-SP-EN", "PH-DS-EN-SP", "PH-SP-DS-EN", "PH-SP-EN-DS", "PH-EN-DS-SP", "PH-EN-SP-DS",
+          "SP-DS-PH-EN", "SP-DS-EN-PH", "SP-PH-DS-EN", "SP-PH-EN-DS", "SP-EN-DS-PH", "SP-EN-PH-DS",
+          "EN-DS-PH-SP", "EN-DS-SP-PH", "EN-PH-DS-SP", "EN-PH-SP-DS", "EN-SP-DS-PH", "EN-SP-PH-DS"]
+
+[enums.group_b_sequence]
+verified = true
+values = ["CHO-DLY-REV", "CHO-REV-DLY", "DLY-CHO-REV", "DLY-REV-CHO", "REV-CHO-DLY", "REV-DLY-CHO"]
+
+[enums.distortion_type]
+verified = true
+values = ["MELLOW DRIVE", "OVERDRIVE", "CRY DRIVE", "MELLOW DIST", "LIGHT DIST", "FAT DIST", "FUZZ DIST"]
+
+[enums.delay_mode]
+verified = true
+values = ["NORMAL", "MIDI TEMPO", "MANUAL TEMPO"]
+
+[enums.reverb_type]
+verified = true
+values = ["ROOM1", "ROOM2", "HALL1", "HALL2", "HALL3", "HALL4",
+          "GATE", "REVERSE", "FLYING1", "FLYING2"]
+
+[enums.reverb_hf_damp]
+verified = true
+values = ["500 Hz", "630 Hz", "800 Hz", "1 kHz", "1.25 kHz", "1.6 kHz", "2 kHz", "2.5 kHz",
+          "3.15 kHz", "4 kHz", "5 kHz", "6.3 kHz", "8 kHz", "10 kHz", "12.5 kHz", "16 kHz", "BYPASS"]
+
+# ── Performance (ADR-22) ─────────────────────────────────────────────────────
+[enums.sync_part]
+verified = true
+values = ["NONE", "PART1", "PART2", "PART3", "PART4", "PART5", "PART6", "PART7"]
+
+[enums.part_bank]
+verified = true
+# Handbuch App. 52: „INT/Card, PresetA/B" — Patchnummer 1–64 = INT bzw. Preset A,
+# 65–128 = Card bzw. Preset B
+values = ["INT/CARD", "PRESET A/B"]
+
+[enums.output_assign]
+verified = true
+values = ["MIX", "DIR-1", "DIR-2", "DIR-3"]
+
+[enums.fx_send_mode]
+verified = true
+values = ["DRY", "REV", "C+R", "D+R"]
+
+[enums.octave]
+verified = true
+values = ["-1", "0", "+1"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  NICHTLINEARE TABELLEN
+#  values   = explizite Liste (Index = Rohwert)
+#  segments = abschnittsweise linear: ab Rohwert `from` gilt start + (raw-from)·step
+#  Die Summe aller Einträge muss raw.max + 1 des Parameters ergeben.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Pitch Key Follow [*4] — 17 Werte, KEINE gleichmäßige Skala
+[tables.key_follow_pitch]
+verified = true
+unit = "%"
+values = ["-100", "-50", "-20", "-10", "-5", "0", "+5", "+10", "+20", "+50",
+          "+98", "+99", "+100", "+101", "+102", "+150", "+200"]
+
+# TVF Cutoff Key Follow [*5] — -100…0 % in 10er-, dann +5…+150 % in 5er-Schritten
+[tables.key_follow_tvf]
+verified = true
+unit = "%"
+segments = [ { from = 0,  start = -100, step = 10 },     # 0–10  → -100 … 0
+             { from = 11, start = 5,    step = 5  } ]    # 11–40 → +5 … +150
+
+# Pan Key Follow [*6] — 15 Werte
+[tables.key_follow_pan]
+verified = true
+unit = "%"
+values = ["-100", "-70", "-50", "-40", "-30", "-20", "-10", "0",
+          "+10", "+20", "+30", "+40", "+50", "+70", "+100"]
+
+# Tone Delay Time [*3] — bei Mode NORMAL/HOLD/KEY-OFF in Sekunden,
+# bei PLAYMATE 0–254 % (2 %-Schritte). Anzeige hängt vom Mode ab.
+[tables.tone_delay_time]
+verified = true
+unit = "s"
+segments = [ { from = 0,   start = 0.0, step = 0.01 },   # 0–100   → 0 … 1 s
+             { from = 101, start = 1.1, step = 0.1  },   # 101–120 → 1.1 … 3 s
+             { from = 121, start = 3.2, step = 0.2  },   # 121–125 → 3.2 … 4 s
+             { from = 126, start = 4.5, step = 0.5  } ]  # 126–127 → 4.5, 5 s
+alt = { when = "tone.wg.delay_mode == PLAYMATE", unit = "%", start = 0, step = 2 }
+
+# Phaser Manual [*7]
+[tables.phaser_manual]
+verified = true
+unit = "Hz"
+segments = [ { from = 0,  start = 50,   step = 10  },    # 0–25  → 50 … 300
+             { from = 26, start = 320,  step = 0   },    # 26    → 320
+             { from = 27, start = 350,  step = 30  },    # 27–49 → 350 … 1010
+             { from = 50, start = 1100, step = 200 },    # 50–85 → 1.1 k … 8.1 k
+             { from = 86, start = 8500, step = 500 } ]   # 86–99 → 8.5 k … 15 k
+
+# Chorus Delay Time [*9]
+[tables.chorus_delay]
+verified = true
+unit = "ms"
+segments = [ { from = 0,  start = 0.1, step = 0.1 },     # 0–49  → 0.1 … 5.0
+             { from = 50, start = 5.5, step = 0.5 },     # 50–59 → 5.5 … 10
+             { from = 60, start = 11,  step = 1   } ]    # 60–99 → 11 … 50
+
+# Delay Tap Time [*10] — Rohwert = MSB·128 + LSB, 0–255
+[tables.delay_tap]
+verified = true
+unit = "ms"
+segments = [ { from = 0,   start = 0.1, step = 0.1 },    # 0–49    → 0.1 … 5.0
+             { from = 50,  start = 5.5, step = 0.5 },    # 50–59   → 5.5 … 10
+             { from = 60,  start = 11,  step = 1   },    # 60–89   → 11 … 40
+             { from = 90,  start = 50,  step = 10  },    # 90–105  → 50 … 200
+             { from = 106, start = 220, step = 20  } ]   # 106–245 → 220 … 3000
+notes = { from = 246, values = ["16th", "8th triplet", "8th", "quarter triplet", "dotted 8th",
+                                "quarter", "half triplet", "dotted quarter", "half", "whole"] }
+
+# Reverb Time [*13] — ROOM/HALL in Sekunden; GATE/REVERSE/FLYING 5–500 ms
+[tables.reverb_time]
+verified = true
+unit = "s"
+segments = [ { from = 0,  start = 0.1, step = 0.1 },     # 0–79  → 0.1 … 8.0
+             { from = 80, start = 8.5, step = 0.5 },     # 80–95 → 8.5 … 16
+             { from = 96, start = 17,  step = 1   } ]    # 96–99 → 17 … 20
+alt = { when = "reverb_type >= GATE", unit = "ms", start = 5, step = 5 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  TONE — 92 Bytes, viermal pro Patch (A/B/C/D), Handbuch *4-3-2 (App. 54)
+# ─────────────────────────────────────────────────────────────────────────────
+[tone]
+size = 92
+
+# Reihenfolge der Gruppen IN DER OBERFLÄCHE. Die Byte-Offsets bestimmen das
+# Protokoll, diese Liste bestimmt das Panel — zwei verschiedene Dinge. Ohne diese
+# Trennung erbt die UI die Reihenfolge der MIDI-Implementation, und die ist nach
+# Speicherlayout sortiert, nicht danach, wie man einen Klang baut.
+group_order = [
+  "WG", "TONE COMMON", "PITCH ENV",
+  "TVF", "TVF ENV", "TVA", "TVA ENV",
+  "LFO 1", "LFO 2", "CTRL 1", "CTRL 2",
+  "990",
+]
+
+param = [
+
+# ── WG · Wave Generator (Offset 0–13) ───────────────────────────────────────
+  { id="tone.wg.wave_source", offset=0, group="WG", label="Source", raw={min=0, max=2}, display={kind="enum", table="wave_source"}, verified=true },
+  # Zwei Bytes (MSB 0–1, LSB 0–127), ein Parameter. Intern 0–194; Karten bis 255.
+  # Anzeige 1–256. Werte > 194 bei Source INT sind ungültig, aber zu erhalten (R7).
+  { id="tone.wg.waveform", offset=1, bytes=2, group="WG", label="Waveform", raw={min=0, max=255}, display={kind="wavelist", table="waveforms", first=1}, verified=true },
+  { id="tone.wg.fxm_color", offset=3, group="990", label="FXM Color", raw={min=0, max=3}, display={kind="linear", min=1, max=4}, verified=true },
+  { id="tone.wg.fxm_depth", offset=4, group="990", label="FXM Depth", raw={min=0, max=100}, display={kind="linear", min=0, max=100, labels={0="OFF"}}, verified=true },
+  { id="tone.wg.sync_slave", offset=5, group="990", label="Sync Slave", raw={min=0, max=1}, display={kind="enum", table="off_on"}, verified=true },
+  { id="tone.wg.delay_mode", offset=6, group="990", label="Delay Mode", raw={min=0, max=4}, display={kind="enum", table="tone_delay_mode"}, verified=true },
+  { id="tone.wg.delay_time", offset=7, group="990", label="Delay Time", raw={min=0, max=127}, display={kind="table", table="tone_delay_time"}, verified=true },
+  { id="tone.wg.pitch_coarse", offset=8, group="WG", label="Coarse", raw={min=0, max=96}, display={kind="linear", min=-48, max=48, unit="st"}, verified=true },
+  { id="tone.wg.pitch_fine", offset=9, group="WG", label="Fine", raw={min=0, max=100}, display={kind="linear", min=-50, max=50, unit="ct"}, verified=true },
+  { id="tone.wg.pitch_random", offset=10, group="WG", label="Random", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.wg.key_follow", offset=11, group="WG", label="Key Follow", raw={min=0, max=16}, display={kind="table", table="key_follow_pitch"}, verified=true },
+  { id="tone.wg.env_depth", offset=12, group="WG", label="Env Depth", raw={min=0, max=24}, display={kind="linear", min=-12, max=12}, verified=true },
+  { id="tone.wg.bender_switch", offset=13, group="WG", label="Bender", raw={min=0, max=1}, display={kind="enum", table="off_on"}, verified=true },
+
+# ── Pitch Envelope (Offset 14–23) ───────────────────────────────────────────
+  { id="tone.pitch_env.velo", offset=14, group="PITCH ENV", label="Velo", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.pitch_env.time_velo", offset=15, group="PITCH ENV", label="T-Velo", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.pitch_env.time_kf", offset=16, group="PITCH ENV", label="T-KF", raw={min=0, max=20}, display={kind="linear", min=-10, max=10}, verified=true },
+  { id="tone.pitch_env.level_0", offset=17, group="PITCH ENV", label="L0", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.pitch_env.time_1", offset=18, group="PITCH ENV", label="T1", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.pitch_env.level_1", offset=19, group="PITCH ENV", label="L1", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.pitch_env.time_2", offset=20, group="PITCH ENV", label="T2", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.pitch_env.sustain", offset=21, group="PITCH ENV", label="Sus", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.pitch_env.time_3", offset=22, group="PITCH ENV", label="T3", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.pitch_env.level_3", offset=23, group="PITCH ENV", label="L3", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+
+# ── TVF · Filter (Offset 24–28) ─────────────────────────────────────────────
+  { id="tone.tvf.filter_mode", offset=24, group="TVF", label="Mode", raw={min=0, max=2}, display={kind="enum", table="filter_mode"}, verified=true },
+  { id="tone.tvf.cutoff", offset=25, group="TVF", label="Cutoff", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.tvf.resonance", offset=26, group="TVF", label="Resonance", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.tvf.key_follow", offset=27, group="TVF", label="Key Follow", raw={min=0, max=40}, display={kind="table", table="key_follow_tvf"}, verified=true },
+  { id="tone.tvf.env_depth", offset=28, group="TVF", label="Env Depth", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+
+# ── TVF Envelope (Offset 29–39) ─────────────────────────────────────────────
+  { id="tone.tvf_env.velo", offset=29, group="TVF ENV", label="Velo", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.tvf_env.time_velo", offset=30, group="TVF ENV", label="T-Velo", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.tvf_env.time_kf", offset=31, group="TVF ENV", label="T-KF", raw={min=0, max=20}, display={kind="linear", min=-10, max=10}, verified=true },
+  { id="tone.tvf_env.time_1", offset=32, group="TVF ENV", label="T1", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.tvf_env.level_1", offset=33, group="TVF ENV", label="L1", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.tvf_env.time_2", offset=34, group="TVF ENV", label="T2", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.tvf_env.level_2", offset=35, group="TVF ENV", label="L2", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.tvf_env.time_3", offset=36, group="TVF ENV", label="T3", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.tvf_env.sustain", offset=37, group="TVF ENV", label="Sus", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.tvf_env.time_4", offset=38, group="TVF ENV", label="T4", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.tvf_env.level_4", offset=39, group="TVF ENV", label="L4", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+
+# ── TVA · Amplifier (Offset 40–45) ──────────────────────────────────────────
+  { id="tone.tva.level", offset=40, group="TVA", label="Level", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.tva.bias_direction", offset=41, group="TVA", label="Bias Dir", raw={min=0, max=2}, display={kind="enum", table="bias_direction"}, verified=true },
+  { id="tone.tva.bias_point", offset=42, group="TVA", label="Bias Pt", raw={min=0, max=127}, display={kind="note"}, verified=true },
+  { id="tone.tva.bias_level", offset=43, group="TVA", label="Bias Lvl", raw={min=0, max=20}, display={kind="linear", min=-10, max=10}, verified=true },
+  # 0–100 = L50…R50, danach RND, ALT-L, ALT-R
+  { id="tone.tva.pan", offset=44, group="990", label="Pan", raw={min=0, max=103}, display={kind="pan", min=0, max=100, center=50, extra=["RND", "ALT-L", "ALT-R"]}, verified=true },
+  { id="tone.tva.pan_key_follow", offset=45, group="990", label="Pan KF", raw={min=0, max=14}, display={kind="table", table="key_follow_pan"}, verified=true },
+
+# ── TVA Envelope (Offset 46–55) ─────────────────────────────────────────────
+  { id="tone.tva_env.velo", offset=46, group="TVA ENV", label="Velo", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.tva_env.time_velo", offset=47, group="TVA ENV", label="T-Velo", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.tva_env.time_kf", offset=48, group="TVA ENV", label="T-KF", raw={min=0, max=20}, display={kind="linear", min=-10, max=10}, verified=true },
+  { id="tone.tva_env.time_1", offset=49, group="TVA ENV", label="T1", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.tva_env.level_1", offset=50, group="TVA ENV", label="L1", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.tva_env.time_2", offset=51, group="TVA ENV", label="T2", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.tva_env.level_2", offset=52, group="TVA ENV", label="L2", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.tva_env.time_3", offset=53, group="TVA ENV", label="T3", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.tva_env.sustain", offset=54, group="TVA ENV", label="Sus", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.tva_env.time_4", offset=55, group="TVA ENV", label="T4", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+
+# ── Tone Common (Offset 56–57) ──────────────────────────────────────────────
+  { id="tone.common.velocity_curve", offset=56, group="TONE COMMON", label="Velo Curve", raw={min=0, max=6}, display={kind="linear", min=1, max=7}, verified=true },
+  { id="tone.common.hold_control", offset=57, group="TONE COMMON", label="Hold", raw={min=0, max=1}, display={kind="enum", table="off_on"}, verified=true },
+
+# ── LFO 1 (Offset 58–66) und LFO 2 (Offset 67–75) ───────────────────────────
+  { id="tone.lfo1.waveform", offset=58, group="LFO 1", label="Wave", raw={min=0, max=7}, display={kind="enum", table="lfo_waveform"}, verified=true },
+  { id="tone.lfo1.rate", offset=59, group="LFO 1", label="Rate", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.lfo1.delay", offset=60, group="LFO 1", label="Delay", raw={min=0, max=101}, display={kind="linear", min=0, max=100, extra=["REL"]}, verified=true },
+  { id="tone.lfo1.fade", offset=61, group="LFO 1", label="Fade", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.lfo1.offset", offset=62, group="LFO 1", label="Offset", raw={min=0, max=2}, display={kind="enum", table="lfo_offset"}, verified=true },
+  { id="tone.lfo1.key_trigger", offset=63, group="LFO 1", label="K-Trig", raw={min=0, max=1}, display={kind="enum", table="off_on"}, verified=true },
+  { id="tone.lfo1.depth_pitch", offset=64, group="LFO 1", label="Pitch", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.lfo1.depth_tvf", offset=65, group="LFO 1", label="TVF", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.lfo1.depth_tva", offset=66, group="LFO 1", label="TVA", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.lfo2.waveform", offset=67, group="LFO 2", label="Wave", raw={min=0, max=7}, display={kind="enum", table="lfo_waveform"}, verified=true },
+  { id="tone.lfo2.rate", offset=68, group="LFO 2", label="Rate", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="tone.lfo2.delay", offset=69, group="LFO 2", label="Delay", raw={min=0, max=101}, display={kind="linear", min=0, max=100, extra=["REL"]}, verified=true },
+  { id="tone.lfo2.fade", offset=70, group="LFO 2", label="Fade", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.lfo2.offset", offset=71, group="LFO 2", label="Offset", raw={min=0, max=2}, display={kind="enum", table="lfo_offset"}, verified=true },
+  { id="tone.lfo2.key_trigger", offset=72, group="LFO 2", label="K-Trig", raw={min=0, max=1}, display={kind="enum", table="off_on"}, verified=true },
+  { id="tone.lfo2.depth_pitch", offset=73, group="LFO 2", label="Pitch", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.lfo2.depth_tvf", offset=74, group="LFO 2", label="TVF", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.lfo2.depth_tva", offset=75, group="LFO 2", label="TVA", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+
+# ── Control Source 1 (Offset 76–83) und 2 (Offset 84–91) ────────────────────
+  { id="tone.cs1.dest_1", offset=76, group="CTRL 1", label="Dest 1", raw={min=0, max=11}, display={kind="enum", table="control_dest"}, verified=true },
+  { id="tone.cs1.depth_1", offset=77, group="CTRL 1", label="Depth 1", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.cs1.dest_2", offset=78, group="CTRL 1", label="Dest 2", raw={min=0, max=11}, display={kind="enum", table="control_dest"}, verified=true },
+  { id="tone.cs1.depth_2", offset=79, group="CTRL 1", label="Depth 2", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.cs1.dest_3", offset=80, group="CTRL 1", label="Dest 3", raw={min=0, max=11}, display={kind="enum", table="control_dest"}, verified=true },
+  { id="tone.cs1.depth_3", offset=81, group="CTRL 1", label="Depth 3", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.cs1.dest_4", offset=82, group="CTRL 1", label="Dest 4", raw={min=0, max=11}, display={kind="enum", table="control_dest"}, verified=true },
+  { id="tone.cs1.depth_4", offset=83, group="CTRL 1", label="Depth 4", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.cs2.dest_1", offset=84, group="CTRL 2", label="Dest 1", raw={min=0, max=11}, display={kind="enum", table="control_dest"}, verified=true },
+  { id="tone.cs2.depth_1", offset=85, group="CTRL 2", label="Depth 1", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.cs2.dest_2", offset=86, group="CTRL 2", label="Dest 2", raw={min=0, max=11}, display={kind="enum", table="control_dest"}, verified=true },
+  { id="tone.cs2.depth_2", offset=87, group="CTRL 2", label="Depth 2", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.cs2.dest_3", offset=88, group="CTRL 2", label="Dest 3", raw={min=0, max=11}, display={kind="enum", table="control_dest"}, verified=true },
+  { id="tone.cs2.depth_3", offset=89, group="CTRL 2", label="Depth 3", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="tone.cs2.dest_4", offset=90, group="CTRL 2", label="Dest 4", raw={min=0, max=11}, display={kind="enum", table="control_dest"}, verified=true },
+  { id="tone.cs2.depth_4", offset=91, group="CTRL 2", label="Depth 4", raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  PATCH COMMON & EFFECT — 118 Bytes (Offset 0–117), Handbuch *4-3-1 (App. 52–53)
+#  Danach folgen Tone A–D ab Offset 118 (siehe meta.tone_bases).
+# ─────────────────────────────────────────────────────────────────────────────
+[patch]
+size = 486
+common_size = 118
+name_offset = 0
+name_length = 16        # ASCII 0x20–0x7F (App. 52)
+
+group_order = [
+  "BASICS", "KEY FX", "STRUCTURE", "KEY RANGE", "VELOCITY", "EQ",
+  "FX CTRL", "GROUP A", "DISTORTION", "PHASER", "SPECTRUM", "ENHANCER",
+  "GROUP B", "CHORUS", "DELAY", "REVERB",
+]
+
+param = [
+# ── Common (16–25) ───────────────────────────────────────────────────────────
+  { id="patch.level",        offset=16, group="BASICS", label="Level",       raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="patch.pan",          offset=17, group="BASICS", label="Pan",         raw={min=0, max=100}, display={kind="pan", min=0, max=100, center=50}, verified=true },
+  { id="patch.analog_feel",  offset=18, group="BASICS", label="Analog Feel", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="patch.voice_prio",   offset=19, group="BASICS", label="Priority",    raw={min=0, max=1},   display={kind="enum", table="voice_priority"}, verified=true },
+  { id="patch.bend_down",    offset=20, group="BASICS", label="Bend Dn",     raw={min=0, max=48},  display={kind="linear", min=0, max=48, unit="st"}, verified=true },
+  { id="patch.bend_up",      offset=21, group="BASICS", label="Bend Up",     raw={min=0, max=12},  display={kind="linear", min=0, max=12, unit="st"}, verified=true },
+  { id="patch.tone_ctrl_1",  offset=22, group="BASICS", label="Tone Ctrl 1", raw={min=0, max=5},   display={kind="enum", table="control_source"}, verified=true },
+  { id="patch.tone_ctrl_2",  offset=23, group="BASICS", label="Tone Ctrl 2", raw={min=0, max=5},   display={kind="enum", table="control_source"}, verified=true },
+  { id="patch.layer_tone",   offset=24, group="BASICS", label="Layer",       raw={min=0, max=15},  display={kind="enum", table="tone_mask"}, verified=true },
+  { id="patch.active_tone",  offset=25, group="BASICS", label="Active",      raw={min=0, max=15},  display={kind="enum", table="tone_mask"}, verified=true },
+
+# ── Key Effects (26–32) ──────────────────────────────────────────────────────
+  { id="patch.porta_sw",     offset=26, group="KEY FX", label="Portamento",  raw={min=0, max=1},   display={kind="enum", table="off_on"}, verified=true },
+  { id="patch.porta_mode",   offset=27, group="KEY FX", label="P-Mode",      raw={min=0, max=1},   display={kind="enum", table="porta_mode"}, verified=true },
+  { id="patch.porta_type",   offset=28, group="KEY FX", label="P-Type",      raw={min=0, max=1},   display={kind="enum", table="porta_type"}, verified=true },
+  { id="patch.porta_time",   offset=29, group="KEY FX", label="P-Time",      raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="patch.solo_sw",      offset=30, group="KEY FX", label="Solo",        raw={min=0, max=1},   display={kind="enum", table="off_on"}, verified=true },
+  { id="patch.solo_legato",  offset=31, group="KEY FX", label="Legato",      raw={min=0, max=1},   display={kind="enum", table="off_on"}, verified=true },
+  { id="patch.solo_sync",    offset=32, group="KEY FX", label="Sync Master", raw={min=0, max=4},   display={kind="enum", table="solo_sync_master"}, verified=true },
+
+# ── EQ (33–39) ───────────────────────────────────────────────────────────────
+  { id="patch.eq.low_freq",  offset=33, group="EQ", label="Low Freq",  raw={min=0, max=1},  display={kind="enum", table="eq_low_freq"}, verified=true },
+  { id="patch.eq.low_gain",  offset=34, group="EQ", label="Low Gain",  raw={min=0, max=30}, display={kind="linear", min=-15, max=15, unit="dB"}, verified=true },
+  { id="patch.eq.mid_freq",  offset=35, group="EQ", label="Mid Freq",  raw={min=0, max=16}, display={kind="enum", table="eq_mid_freq"}, verified=true },
+  { id="patch.eq.mid_q",     offset=36, group="EQ", label="Mid Q",     raw={min=0, max=4},  display={kind="enum", table="eq_mid_q"}, verified=true },
+  { id="patch.eq.mid_gain",  offset=37, group="EQ", label="Mid Gain",  raw={min=0, max=30}, display={kind="linear", min=-15, max=15, unit="dB"}, verified=true },
+  { id="patch.eq.high_freq", offset=38, group="EQ", label="High Freq", raw={min=0, max=1},  display={kind="enum", table="eq_high_freq"}, verified=true },
+  { id="patch.eq.high_gain", offset=39, group="EQ", label="High Gain", raw={min=0, max=30}, display={kind="linear", min=-15, max=15, unit="dB"}, verified=true },
+
+# ── Structure (40–41) ────────────────────────────────────────────────────────
+  { id="patch.structure_ab", offset=40, group="STRUCTURE", label="A & B", raw={min=0, max=5}, display={kind="enum", table="structure"}, verified=true },
+  { id="patch.structure_cd", offset=41, group="STRUCTURE", label="C & D", raw={min=0, max=5}, display={kind="enum", table="structure"}, verified=true },
+
+# ── Key Range (42–49) ────────────────────────────────────────────────────────
+  { id="patch.key_lo_a", offset=42, group="KEY RANGE", label="Low A",  raw={min=0, max=127}, display={kind="note"}, verified=true },
+  { id="patch.key_lo_b", offset=43, group="KEY RANGE", label="Low B",  raw={min=0, max=127}, display={kind="note"}, verified=true },
+  { id="patch.key_lo_c", offset=44, group="KEY RANGE", label="Low C",  raw={min=0, max=127}, display={kind="note"}, verified=true },
+  { id="patch.key_lo_d", offset=45, group="KEY RANGE", label="Low D",  raw={min=0, max=127}, display={kind="note"}, verified=true },
+  { id="patch.key_hi_a", offset=46, group="KEY RANGE", label="High A", raw={min=0, max=127}, display={kind="note"}, verified=true },
+  { id="patch.key_hi_b", offset=47, group="KEY RANGE", label="High B", raw={min=0, max=127}, display={kind="note"}, verified=true },
+  { id="patch.key_hi_c", offset=48, group="KEY RANGE", label="High C", raw={min=0, max=127}, display={kind="note"}, verified=true },
+  { id="patch.key_hi_d", offset=49, group="KEY RANGE", label="High D", raw={min=0, max=127}, display={kind="note"}, verified=true },
+
+# ── Velocity (50–61) ─────────────────────────────────────────────────────────
+  { id="patch.velo_range_a", offset=50, group="VELOCITY", label="Range A", raw={min=0, max=2},   display={kind="enum", table="velocity_range"}, verified=true },
+  { id="patch.velo_range_b", offset=51, group="VELOCITY", label="Range B", raw={min=0, max=2},   display={kind="enum", table="velocity_range"}, verified=true },
+  { id="patch.velo_range_c", offset=52, group="VELOCITY", label="Range C", raw={min=0, max=2},   display={kind="enum", table="velocity_range"}, verified=true },
+  { id="patch.velo_range_d", offset=53, group="VELOCITY", label="Range D", raw={min=0, max=2},   display={kind="enum", table="velocity_range"}, verified=true },
+  # Achtung: Velocity Point beginnt bei 1, nicht 0 (App. 52)
+  { id="patch.velo_point_a", offset=54, group="VELOCITY", label="Point A", raw={min=1, max=127}, display={kind="linear", min=1, max=127}, verified=true },
+  { id="patch.velo_point_b", offset=55, group="VELOCITY", label="Point B", raw={min=1, max=127}, display={kind="linear", min=1, max=127}, verified=true },
+  { id="patch.velo_point_c", offset=56, group="VELOCITY", label="Point C", raw={min=1, max=127}, display={kind="linear", min=1, max=127}, verified=true },
+  { id="patch.velo_point_d", offset=57, group="VELOCITY", label="Point D", raw={min=1, max=127}, display={kind="linear", min=1, max=127}, verified=true },
+  { id="patch.velo_fade_a",  offset=58, group="VELOCITY", label="Fade A",  raw={min=0, max=127}, display={kind="linear", min=0, max=127}, verified=true },
+  { id="patch.velo_fade_b",  offset=59, group="VELOCITY", label="Fade B",  raw={min=0, max=127}, display={kind="linear", min=0, max=127}, verified=true },
+  { id="patch.velo_fade_c",  offset=60, group="VELOCITY", label="Fade C",  raw={min=0, max=127}, display={kind="linear", min=0, max=127}, verified=true },
+  { id="patch.velo_fade_d",  offset=61, group="VELOCITY", label="Fade D",  raw={min=0, max=127}, display={kind="linear", min=0, max=127}, verified=true },
+
+# ── Effect Control (62–68) ───────────────────────────────────────────────────
+  { id="patch.fx.balance_b",  offset=62, group="FX CTRL", label="Balance B", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="patch.fx.ctrl_src_1", offset=63, group="FX CTRL", label="Source 1",  raw={min=0, max=5},   display={kind="enum", table="control_source"}, verified=true },
+  { id="patch.fx.ctrl_dst_1", offset=64, group="FX CTRL", label="Dest 1",    raw={min=0, max=14},  display={kind="enum", table="fx_control_dest"}, verified=true },
+  { id="patch.fx.ctrl_dep_1", offset=65, group="FX CTRL", label="Depth 1",   raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+  { id="patch.fx.ctrl_src_2", offset=66, group="FX CTRL", label="Source 2",  raw={min=0, max=5},   display={kind="enum", table="control_source"}, verified=true },
+  { id="patch.fx.ctrl_dst_2", offset=67, group="FX CTRL", label="Dest 2",    raw={min=0, max=14},  display={kind="enum", table="fx_control_dest"}, verified=true },
+  { id="patch.fx.ctrl_dep_2", offset=68, group="FX CTRL", label="Depth 2",   raw={min=0, max=100}, display={kind="linear", min=-50, max=50}, verified=true },
+
+# ── Group A Chain (69–73) ────────────────────────────────────────────────────
+  { id="patch.fx.a_sequence", offset=69, group="GROUP A", label="Sequence", raw={min=0, max=23}, display={kind="enum", table="group_a_sequence"}, verified=true },
+  # Block-N-Schalter gehören fest zum Effekt (A: 1 DS, 2 PH, 3 SP, 4 EN · B: 1 CHO, 2 DLY, 3 REV),
+  # unabhängig von der Sequenz — Hörtest 2026-09-28 (Logbuch).
+  { id="patch.fx.a_sw_1",     offset=70, group="GROUP A", label="Dist SW",  raw={min=0, max=1},  display={kind="enum", table="off_on"}, verified=true },
+  { id="patch.fx.a_sw_2",     offset=71, group="GROUP A", label="Phaser SW",  raw={min=0, max=1},  display={kind="enum", table="off_on"}, verified=true },
+  { id="patch.fx.a_sw_3",     offset=72, group="GROUP A", label="Spectrum SW",  raw={min=0, max=1},  display={kind="enum", table="off_on"}, verified=true },
+  { id="patch.fx.a_sw_4",     offset=73, group="GROUP A", label="Enhancer SW",  raw={min=0, max=1},  display={kind="enum", table="off_on"}, verified=true },
+
+# ── Distortion (74–76) ───────────────────────────────────────────────────────
+  { id="patch.fx.ds_type",  offset=74, group="DISTORTION", label="Type",  raw={min=0, max=6},   display={kind="enum", table="distortion_type"}, verified=true },
+  { id="patch.fx.ds_drive", offset=75, group="DISTORTION", label="Drive", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="patch.fx.ds_level", offset=76, group="DISTORTION", label="Level", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+
+# ── Phaser (77–81) ───────────────────────────────────────────────────────────
+  { id="patch.fx.ph_manual", offset=77, group="PHASER", label="Manual",    raw={min=0, max=99},  display={kind="table", table="phaser_manual"}, verified=true },
+  { id="patch.fx.ph_rate",   offset=78, group="PHASER", label="Rate",      raw={min=0, max=99},  display={kind="linear", min=0.1, max=10.0, unit="Hz"}, verified=true },
+  { id="patch.fx.ph_depth",  offset=79, group="PHASER", label="Depth",     raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="patch.fx.ph_reso",   offset=80, group="PHASER", label="Resonance", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="patch.fx.ph_mix",    offset=81, group="PHASER", label="Mix",       raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+
+# ── Spectrum (82–88) ─────────────────────────────────────────────────────────
+  { id="patch.fx.sp_band_1", offset=82, group="SPECTRUM", label="Band 1", raw={min=0, max=30}, display={kind="linear", min=-15, max=15, unit="dB"}, verified=true },
+  { id="patch.fx.sp_band_2", offset=83, group="SPECTRUM", label="Band 2", raw={min=0, max=30}, display={kind="linear", min=-15, max=15, unit="dB"}, verified=true },
+  { id="patch.fx.sp_band_3", offset=84, group="SPECTRUM", label="Band 3", raw={min=0, max=30}, display={kind="linear", min=-15, max=15, unit="dB"}, verified=true },
+  { id="patch.fx.sp_band_4", offset=85, group="SPECTRUM", label="Band 4", raw={min=0, max=30}, display={kind="linear", min=-15, max=15, unit="dB"}, verified=true },
+  { id="patch.fx.sp_band_5", offset=86, group="SPECTRUM", label="Band 5", raw={min=0, max=30}, display={kind="linear", min=-15, max=15, unit="dB"}, verified=true },
+  { id="patch.fx.sp_band_6", offset=87, group="SPECTRUM", label="Band 6", raw={min=0, max=30}, display={kind="linear", min=-15, max=15, unit="dB"}, verified=true },
+  { id="patch.fx.sp_width",  offset=88, group="SPECTRUM", label="Width",  raw={min=0, max=4},  display={kind="linear", min=1, max=5}, verified=true },
+
+# ── Enhancer (89–90) ─────────────────────────────────────────────────────────
+  { id="patch.fx.en_sens", offset=89, group="ENHANCER", label="Sens", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="patch.fx.en_mix",  offset=90, group="ENHANCER", label="Mix",  raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+
+# ── Group B Chain (91–94) ────────────────────────────────────────────────────
+  { id="patch.fx.b_sequence", offset=91, group="GROUP B", label="Sequence", raw={min=0, max=5}, display={kind="enum", table="group_b_sequence"}, verified=true },
+  { id="patch.fx.b_sw_1",     offset=92, group="GROUP B", label="Chorus SW",  raw={min=0, max=1}, display={kind="enum", table="off_on"}, verified=true },
+  { id="patch.fx.b_sw_2",     offset=93, group="GROUP B", label="Delay SW",  raw={min=0, max=1}, display={kind="enum", table="off_on"}, verified=true },
+  { id="patch.fx.b_sw_3",     offset=94, group="GROUP B", label="Reverb SW",  raw={min=0, max=1}, display={kind="enum", table="off_on"}, verified=true },
+
+# ── Chorus (95–99) ───────────────────────────────────────────────────────────
+  { id="patch.fx.ch_rate",     offset=95, group="CHORUS", label="Rate",     raw={min=0, max=99},  display={kind="linear", min=0.1, max=10.0, unit="Hz"}, verified=true },
+  { id="patch.fx.ch_depth",    offset=96, group="CHORUS", label="Depth",    raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="patch.fx.ch_delay",    offset=97, group="CHORUS", label="Delay",    raw={min=0, max=99},  display={kind="table", table="chorus_delay"}, verified=true },
+  { id="patch.fx.ch_feedback", offset=98, group="CHORUS", label="Feedback", raw={min=0, max=98},  display={kind="linear", min=-98, max=98, unit="%"}, verified=true },
+  { id="patch.fx.ch_level",    offset=99, group="CHORUS", label="Level",    raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+
+# ── Delay (100–110) — Tap-Zeiten als MSB/LSB-Paar ────────────────────────────
+  { id="patch.fx.dl_mode",     offset=100, group="DELAY", label="Mode",     raw={min=0, max=2},   display={kind="enum", table="delay_mode"}, verified=true },
+  { id="patch.fx.dl_center",   offset=101, bytes=2, group="DELAY", label="Center", raw={min=0, max=255}, display={kind="table", table="delay_tap"}, verified=true },
+  { id="patch.fx.dl_center_lv",offset=103, group="DELAY", label="C Level",  raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="patch.fx.dl_left",     offset=104, bytes=2, group="DELAY", label="Left",   raw={min=0, max=255}, display={kind="table", table="delay_tap"}, verified=true },
+  { id="patch.fx.dl_left_lv",  offset=106, group="DELAY", label="L Level",  raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="patch.fx.dl_right",    offset=107, bytes=2, group="DELAY", label="Right",  raw={min=0, max=255}, display={kind="table", table="delay_tap"}, verified=true },
+  { id="patch.fx.dl_right_lv", offset=109, group="DELAY", label="R Level",  raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="patch.fx.dl_feedback", offset=110, group="DELAY", label="Feedback", raw={min=0, max=98},  display={kind="linear", min=-98, max=98, unit="%"}, verified=true },
+
+# ── Reverb (111–116) ─────────────────────────────────────────────────────────
+  { id="patch.fx.rv_type",     offset=111, group="REVERB", label="Type",      raw={min=0, max=9},   display={kind="enum", table="reverb_type"}, verified=true },
+  { id="patch.fx.rv_predelay", offset=112, group="REVERB", label="Pre Delay", raw={min=0, max=120}, display={kind="linear", min=0, max=120, unit="ms"}, verified=true },
+  { id="patch.fx.rv_early",    offset=113, group="REVERB", label="Early Ref", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="patch.fx.rv_hf_damp",  offset=114, group="REVERB", label="HF Damp",   raw={min=0, max=16},  display={kind="enum", table="reverb_hf_damp"}, verified=true },
+  { id="patch.fx.rv_time",     offset=115, group="REVERB", label="Time",      raw={min=0, max=99},  display={kind="table", table="reverb_time"}, verified=true },
+  { id="patch.fx.rv_level",    offset=116, group="REVERB", label="Level",     raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+
+# ── Octave (117) ─────────────────────────────────────────────────────────────
+  { id="patch.octave", offset=117, group="BASICS", label="Octave", raw={min=0, max=2}, display={kind="enum", table="octave"}, verified=true },
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  PERFORMANCE — 144 Bytes: Common 48 (0–47) + Part 1–8 je 12 ab 48 (ADR-22)
+#  Handbuch *4-2 (App. 51–52), am Handbuch-PDF abgelesen 2026-10-03.
+#  Achtung: Die Beispiele auf App. 52 rechnen mit Part 1 ab 0x2E — falsch;
+#  die Tabelle (0x30) passt zu allen 16 Performances im Backup (Dummy-Bytes 0).
+#  Ein "#" im Handbuch (Voice Reserve 2–8, Tap-LSB) heißt: ein DT1 darf dort
+#  nicht beginnen. Tap-Zeiten sind MSB/LSB-Paare; die Voice Reserve wird immer
+#  als ganzer Block 0x11–0x18 geschrieben (Summe ≤ 24, siehe jd990-core).
+#  Part 8 ist der Rhythm-Part (out of scope); Output/FX-Send gelten dort nicht.
+#  verified = gegen das Handbuch; Hardware-Bestätigung folgt in P0 (Logbuch).
+# ─────────────────────────────────────────────────────────────────────────────
+[performance]
+size = 144
+common_size = 48
+name_offset = 0
+name_length = 16
+reserved = [47]           # <dummy>
+part_base = 48
+part_size = 12
+part_count = 8
+part_reserved = [11]      # <dummy>
+
+group_order = ["PERFORMANCE", "VOICE RESERVE", "PERF CHORUS", "PERF DELAY", "PERF REVERB", "PART"]
+
+param = [
+  { id="perf.sync_part",   offset=16, group="PERFORMANCE", label="Sync Part", raw={min=0, max=7}, display={kind="enum", table="sync_part"}, verified=true },
+  { id="perf.reserve_1",   offset=17, group="VOICE RESERVE", label="Part 1", raw={min=0, max=24}, display={kind="linear", min=0, max=24}, verified=true },
+  { id="perf.reserve_2",   offset=18, group="VOICE RESERVE", label="Part 2", raw={min=0, max=24}, display={kind="linear", min=0, max=24}, verified=true },
+  { id="perf.reserve_3",   offset=19, group="VOICE RESERVE", label="Part 3", raw={min=0, max=24}, display={kind="linear", min=0, max=24}, verified=true },
+  { id="perf.reserve_4",   offset=20, group="VOICE RESERVE", label="Part 4", raw={min=0, max=24}, display={kind="linear", min=0, max=24}, verified=true },
+  { id="perf.reserve_5",   offset=21, group="VOICE RESERVE", label="Part 5", raw={min=0, max=24}, display={kind="linear", min=0, max=24}, verified=true },
+  { id="perf.reserve_6",   offset=22, group="VOICE RESERVE", label="Part 6", raw={min=0, max=24}, display={kind="linear", min=0, max=24}, verified=true },
+  { id="perf.reserve_7",   offset=23, group="VOICE RESERVE", label="Part 7", raw={min=0, max=24}, display={kind="linear", min=0, max=24}, verified=true },
+  { id="perf.reserve_8",   offset=24, group="VOICE RESERVE", label="Part 8", raw={min=0, max=24}, display={kind="linear", min=0, max=24}, verified=true },
+
+  { id="perf.ch_rate",     offset=25, group="PERF CHORUS", label="Rate",     raw={min=0, max=99},  display={kind="linear", min=0.1, max=10.0, unit="Hz"}, verified=true },
+  { id="perf.ch_depth",    offset=26, group="PERF CHORUS", label="Depth",    raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="perf.ch_delay",    offset=27, group="PERF CHORUS", label="Delay",    raw={min=0, max=99},  display={kind="table", table="chorus_delay"}, verified=true },
+  { id="perf.ch_feedback", offset=28, group="PERF CHORUS", label="Feedback", raw={min=0, max=98},  display={kind="linear", min=-98, max=98, unit="%"}, verified=true },
+  { id="perf.ch_level",    offset=29, group="PERF CHORUS", label="Level",    raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+
+  { id="perf.dl_mode",     offset=30, group="PERF DELAY", label="Mode",     raw={min=0, max=2},   display={kind="enum", table="delay_mode"}, verified=true },
+  { id="perf.dl_center",   offset=31, bytes=2, group="PERF DELAY", label="Center", raw={min=0, max=255}, display={kind="table", table="delay_tap"}, verified=true },
+  { id="perf.dl_center_lv",offset=33, group="PERF DELAY", label="C Level",  raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="perf.dl_left",     offset=34, bytes=2, group="PERF DELAY", label="Left",   raw={min=0, max=255}, display={kind="table", table="delay_tap"}, verified=true },
+  { id="perf.dl_left_lv",  offset=36, group="PERF DELAY", label="L Level",  raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="perf.dl_right",    offset=37, bytes=2, group="PERF DELAY", label="Right",  raw={min=0, max=255}, display={kind="table", table="delay_tap"}, verified=true },
+  { id="perf.dl_right_lv", offset=39, group="PERF DELAY", label="R Level",  raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="perf.dl_feedback", offset=40, group="PERF DELAY", label="Feedback", raw={min=0, max=98},  display={kind="linear", min=-98, max=98, unit="%"}, verified=true },
+
+  { id="perf.rv_type",     offset=41, group="PERF REVERB", label="Type",      raw={min=0, max=9},   display={kind="enum", table="reverb_type"}, verified=true },
+  { id="perf.rv_predelay", offset=42, group="PERF REVERB", label="Pre Delay", raw={min=0, max=120}, display={kind="linear", min=0, max=120, unit="ms"}, verified=true },
+  { id="perf.rv_early",    offset=43, group="PERF REVERB", label="Early Ref", raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="perf.rv_hf_damp",  offset=44, group="PERF REVERB", label="HF Damp",   raw={min=0, max=16},  display={kind="enum", table="reverb_hf_damp"}, verified=true },
+  { id="perf.rv_time",     offset=45, group="PERF REVERB", label="Time",      raw={min=0, max=99},  display={kind="table", table="reverb_time"}, verified=true },
+  { id="perf.rv_level",    offset=46, group="PERF REVERB", label="Level",     raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+]
+
+# Je Part (Offset innerhalb der 12 Byte; Part n beginnt bei part_base + 12·(n−1))
+part_param = [
+  { id="part.rx_sw",      offset=0,  group="PART", label="Rx",        raw={min=0, max=1},   display={kind="enum", table="off_on"}, verified=true },
+  { id="part.rx_ch",      offset=1,  group="PART", label="Kanal",     raw={min=0, max=15},  display={kind="linear", min=1, max=16}, verified=true },
+  { id="part.bank",       offset=2,  group="PART", label="Bank",      raw={min=0, max=1},   display={kind="enum", table="part_bank"}, verified=true },
+  { id="part.patch",      offset=3,  group="PART", label="Patch",     raw={min=0, max=127}, display={kind="linear", min=1, max=128}, verified=true },
+  { id="part.level",      offset=4,  group="PART", label="Level",     raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+  { id="part.pan",        offset=5,  group="PART", label="Pan",       raw={min=0, max=100}, display={kind="pan", min=0, max=100, center=50}, verified=true },
+  { id="part.coarse",     offset=6,  group="PART", label="Coarse",    raw={min=0, max=96},  display={kind="linear", min=-48, max=48, unit="st"}, verified=true },
+  { id="part.fine",       offset=7,  group="PART", label="Fine",      raw={min=0, max=100}, display={kind="linear", min=-50, max=50, unit="ct"}, verified=true },
+  { id="part.output",     offset=8,  group="PART", label="Out",       raw={min=0, max=3},   display={kind="enum", table="output_assign"}, verified=true },
+  { id="part.fx_mode",    offset=9,  group="PART", label="FX Send",   raw={min=0, max=3},   display={kind="enum", table="fx_send_mode"}, verified=true },
+  { id="part.fx_level",   offset=10, group="PART", label="FX Level",  raw={min=0, max=100}, display={kind="linear", min=0, max=100}, verified=true },
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  INIT-PATCH — Startpunkt für „von Grund auf" (M3) und Doppelklick-Wert
+#
+#  Regel für jeden Parameter ohne Eintrag hier:
+#    linear mit negativem Anzeige-Minimum → Rohwert der Anzeige 0 (Mitte)
+#    pan → Mitte · alles andere → raw.min
+#  Die Einträge unten überschreiben die Regel (Rohwerte). Der Build prüft,
+#  dass jeder Wert im Bereich liegt. Tone-Werte gelten für alle vier Tones;
+#  aktiv ist nur Tone A. Effekte sind aus, damit der Init-Klang trocken ist.
+#  Eigene Festlegung (2026-09-28), angelehnt an die Werkspatches — kein Roland-Wert.
+# ─────────────────────────────────────────────────────────────────────────────
+[init]
+name = "INIT PATCH"
+
+[init.patch]
+"patch.level" = 80
+"patch.bend_down" = 2
+"patch.bend_up" = 2
+"patch.tone_ctrl_2" = 1          # AFTER
+"patch.layer_tone" = 1           # A
+"patch.active_tone" = 1          # A
+"patch.octave" = 1               # 0
+"patch.eq.mid_freq" = 7          # 1 kHz
+"patch.eq.mid_q" = 1             # 1.0
+"patch.key_hi_a" = 127
+"patch.key_hi_b" = 127
+"patch.key_hi_c" = 127
+"patch.key_hi_d" = 127
+"patch.velo_point_a" = 64
+"patch.velo_point_b" = 64
+"patch.velo_point_c" = 64
+"patch.velo_point_d" = 64
+"patch.fx.balance_b" = 50
+"patch.fx.ds_drive" = 50
+"patch.fx.ds_level" = 50
+"patch.fx.ph_manual" = 50
+"patch.fx.ph_rate" = 9           # 1.0 Hz
+"patch.fx.ph_depth" = 50
+"patch.fx.ph_mix" = 50
+"patch.fx.en_sens" = 50
+"patch.fx.en_mix" = 50
+"patch.fx.ch_rate" = 9           # 1.0 Hz
+"patch.fx.ch_depth" = 50
+"patch.fx.ch_delay" = 49         # 5 ms
+"patch.fx.ch_feedback" = 49      # 0 %
+"patch.fx.ch_level" = 50
+"patch.fx.dl_center" = 125       # 600 ms
+"patch.fx.dl_center_lv" = 50
+"patch.fx.dl_left" = 115         # 400 ms
+"patch.fx.dl_left_lv" = 50
+"patch.fx.dl_right" = 110        # 300 ms
+"patch.fx.dl_right_lv" = 50
+"patch.fx.dl_feedback" = 49      # 0 %
+"patch.fx.rv_type" = 2           # HALL1
+"patch.fx.rv_predelay" = 10
+"patch.fx.rv_early" = 50
+"patch.fx.rv_hf_damp" = 16       # BYPASS
+"patch.fx.rv_time" = 20          # 2.1 s
+"patch.fx.rv_level" = 50
+
+[init.tone]
+"tone.wg.key_follow" = 12        # +100 %
+"tone.wg.bender_switch" = 1
+"tone.tvf.filter_mode" = 2       # LPF
+"tone.tvf.cutoff" = 100
+"tone.tvf.key_follow" = 10       # 0 %
+"tone.tvf_env.level_1" = 100
+"tone.tvf_env.level_2" = 100
+"tone.tvf_env.sustain" = 100
+"tone.tva.level" = 100
+"tone.tva.bias_point" = 60       # C4
+"tone.tva.pan_key_follow" = 7    # 0 %
+"tone.tva_env.level_1" = 100
+"tone.tva_env.level_2" = 100
+"tone.tva_env.sustain" = 100
+"tone.tva_env.time_4" = 10
+"tone.common.hold_control" = 1
+"tone.lfo1.rate" = 50
+"tone.lfo1.offset" = 1           # 0
+"tone.lfo2.rate" = 50
+"tone.lfo2.offset" = 1           # 0
+"tone.cs1.dest_1" = 4            # P-LFO1 — Muster der Werkspatches
+"tone.cs1.dest_2" = 6            # F-LFO1
+"tone.cs1.dest_3" = 8            # A-LFO1
+"tone.cs1.dest_4" = 10           # LFO1-R
+"tone.cs2.dest_1" = 0            # PITCH
+"tone.cs2.dest_2" = 5            # P-LFO2
+"tone.cs2.dest_3" = 1            # CUTOFF
+"tone.cs2.dest_4" = 3            # LEVEL

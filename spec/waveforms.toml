@@ -1,0 +1,69 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  Interne Wellenformen des JD-990 — 195 Stück, Index 0 = "None"
+# ─────────────────────────────────────────────────────────────────────────────
+#
+#  Übertragung als MSB/LSB-Bytepaar: nummer = MSB * 128 + LSB.
+#
+#  Karten-Wellenformen (SR-JV80, SO-PCM1, SL-JD80) sind out of scope und
+#  deshalb hier NICHT gelistet. Der Codec muss unbekannte Nummern trotzdem
+#  byte-exakt durchreichen — siehe docs/06-risiken.md, R7.
+#
+#  Namen übernommen aus JDTools, WaveformNames.hpp
+#  © 2022–2024 Johannes Schultz, BSD 3-clause
+#  https://github.com/sagamusix/JDTools
+# ─────────────────────────────────────────────────────────────────────────────
+
+[waveforms]
+verified = true
+count = 195
+names = [
+  "None", "Syn Saw 1", "Syn Saw 2", "FAT Saw"                   ,  # 0
+  "FAT Square", "Syn Pulse1", "Syn Pulse2", "Syn Pulse3"        ,  # 4
+  "Syn Pulse4", "Syn Pulse5", "Pulse Mod", "Triangle"           ,  # 8
+  "Syn Sine", "Soft Pad", "Wire Str", "MIDI Clav"               ,  # 12
+  "Spark Vox1", "Spark Vox2", "Syn Sax", "Clav Wave"            ,  # 16
+  "Cello Wave", "BrightDigi", "Cutters", "Syn Bass"             ,  # 20
+  "Rad Hose", "Vocal Wave", "Wally Wave", "Brusky lp"           ,  # 24
+  "Digiwave", "Can Wave 1", "Can Wave 2", "EML 5th"             ,  # 28
+  "Wave Scan", "Nasty", "Wave Table", "Fine Wine"               ,  # 32
+  "Funk Bass1", "Funk Bass2", "Strat Sust", "Harp Harm"         ,  # 36
+  "Full Organ", "Full Draw", "Doo", "ZZZ Vox"                   ,  # 40
+  "Org Vox", "Male Vox", "Kalimba", "Xylo"                      ,  # 44
+  "Marim Wave", "Log Drum", "AgogoBells", "Bottle Hit"          ,  # 48
+  "Gamelan 1", "Gamelan 2", "Gamelan 3", "Tabla"                ,  # 52
+  "Pole lp", "Pluck Harp", "Nylon Str", "Hooky"                 ,  # 56
+  "Muters", "Klack Wave", "Crystal", "Digi Bell"                ,  # 60
+  "FingerBell", "Digi Chime", "Bell Wave", "Org Bell"           ,  # 64
+  "Scrape Gut", "Start Atk", "Hellow Bs", "Piano Atk"           ,  # 68
+  "EP Hard", "Clear Keys", "EP Distone", "Flute Push"           ,  # 72
+  "Shami", "Wood Crak", "Klmba Atk", "Block"                    ,  # 76
+  "Org Atk 1", "Org Atk 2", "Cowbell", "Sm Metal"               ,  # 80
+  "StrikePole", "Pizz", "Switch", "Tuba Slap"                   ,  # 84
+  "Plink", "Plunk", "EP Atk", "TVF_Trig"                        ,  # 88
+  "Flute Tone", "Pan Pipe", "BottleBlow", "Shaku Atk"           ,  # 92
+  "FlugelWave", "French", "WhiteNoise", "Pink Noise"            ,  # 96
+  "Pitch Wind", "Vox Noise1", "Vox Noise2", "CrunchWind"        ,  # 100
+  "ThroatWind", "Metal Wind", "Windago", "Anklungs"             ,  # 104
+  "Wind Chime", "Ac Piano 1", "SA Rhodes 1", "SA Rhodes 2"      ,  # 108
+  "E.Piano 1", "E.Piano 2", "Clav 1", "Organ 1"                 ,  # 112
+  "Jazz Organ", "Pipe Organ", "Nylton GTR", "6STR GTR"          ,  # 116
+  "GTR HARM", "Mute GTR 1", "Pop Strat", "Stratus"              ,  # 120
+  "SYN GTR", " Harp 1", "Pick Bass", "E.Bass"                   ,  # 124
+  "Fretless 1", "Upright BS", "Slap Bass 1", "Slap & Pop"       ,  # 128
+  "Slap Bass 2", "Slap Bass 3", "Flute 1", "Trumpet 1"          ,  # 132
+  "Trombone 1", "Harmon Mute1", "Alto Sax 1", "Tenor Sax 1"     ,  # 136
+  "Blow Pipe", "Trumpet SECT", "Strings", "SYN VOX 1"           ,  # 140
+  "SYN VOX 2", "Org Vox 2", "Pop Voice", "Fantasynth"           ,  # 144
+  "Fanta Bell", "Vibes", "Steel Drums", "MMM Vox"               ,  # 148
+  "Lead Wave", "Feedbackwave", "Rattles", "Tin Wave"            ,  # 152
+  "Spectrum 1", "Solid Kick", "Room Kick", "808 K Long"         ,  # 156
+  "Hard SN", "808 SN", "90's SN", "Bigshot SN"                  ,  # 160
+  "Power SN", "Power Tom", "Closed HH1", "Closed HH2"           ,  # 164
+  "Open HH", "Crash Cym", "Ride Cym", "808 Claps"               ,  # 168
+  "Maraca", "Cabasa Up", "CabasaDown", "Slpa Cga"               ,  # 172
+  "Mute Cga 1", "Mute Cga 2", "Hi Conga", "Lo Conga"            ,  # 176
+  "Snaps", "Tambourine", "Cowbell 2", "Saw +DC"                 ,  # 180
+  "Sqr +DC", "Pulse1 +DC", "Pulse2 +DC", "Pulse3 +DC"           ,  # 184
+  "Pulse4 +DC", "Pulse5 +DC", "Triangle +DC", "Sine +DC"        ,  # 188
+  "Loop 1", "Loop 2", "Loop 3", "Loop 4"                        ,  # 192
+]
