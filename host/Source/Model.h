@@ -13,6 +13,7 @@
 #include "jd990.h"
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <array>
+#include <map>
 #include <set>
 
 struct PatchDeleter { void operator() (Jd990Patch* p) const { jd990_patch_free (p); } };
@@ -146,7 +147,18 @@ public:
     void readFromDevice();
     /** Liest Internal I:11 … I:88 nacheinander (nur RQ1). `onEach` je Patch, `onDone` am Ende. */
     void readBank (std::function<void (int, PatchPtr)> onEach, std::function<void (int)> onDone);
-    bool readingBank() const { return bankIndex >= 0; }
+    bool readingBank() const { return bankIndex >= 0 || presetIndex >= 0; }
+    /** Liest die 128 ROM-Presets A:11–B:88. Ein Adressbereich dafür fehlt im JD-990 —
+        deshalb über Part 7 im Performance-Modus: Patchnummer setzen (das Gerät lädt den
+        Preset in den Part), Part-Patch lesen. Danach Part 7, Performance und Modus wie
+        vorher. Nur Temp-Bereiche und System mode werden beschrieben (ADR-7/22). */
+    void readPresets (std::function<void (const juce::String& slot, PatchPtr)> onEach, std::function<void (int)> onDone);
+
+    // ── Namen der Speicherplätze (für das Patch-Menü der Parts) ──────────────
+    /** Zuletzt gelesener Name eines Platzes („I:11“, „A:23“, „B:57“), sonst leer.
+        Gemerkt bei jedem Lesen (Bank, Presets, Patchwahl eines Parts), gespeichert. */
+    juce::String slotName (const juce::String& slot) const;
+    void rememberSlotName (const juce::String& slot, const juce::String& name);
     void sendToDevice();
     void setPolling (int ms);
     bool polling() const { return isTimerRunning(); }
@@ -178,6 +190,10 @@ private:
     bool loaded = false;
     bool checking = false;
     int bankIndex = -1, bankRead = 0;
+    int presetIndex = -1;                  // Preset-Import läuft (0–127)
+    std::map<juce::String, juce::String> slotNames;
+    void presetStep (int n, std::shared_ptr<struct PresetRun> run);
+    void presetFinish (std::shared_ptr<struct PresetRun> run, bool ok);
     std::function<void (int, PatchPtr)> bankEach;
     std::function<void (int)> bankDone;
     struct Step

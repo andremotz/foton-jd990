@@ -90,6 +90,24 @@ LibraryView::LibraryView (Model& m, const juce::String& dbPath) : model (m)
                             reload();
                         });
     };
+    presetBtn.setTooltip (juce::String::fromUTF8 ("Die 128 ROM-Presets A:11–B:88 lesen und in die Bibliothek übernehmen (~2 Min.). "
+                                                  "Dafür schaltet der Editor das Gerät kurz in den Performance-Modus und lädt die Presets "
+                                                  "nacheinander in Part 7 — danach ist alles wie vorher. Nichts wird gespeichert."));
+    presetBtn.onClick = [this] {
+        auto added = std::make_shared<int> (0);
+        presetBtn.setEnabled (false);
+        deviceBtn.setEnabled (false);
+        model.readPresets ([this, added] (const juce::String& slot, PatchPtr p) {
+                               auto src = u ("Gerät · Preset ") + slot + u (" · ") + juce::Time::getCurrentTime().formatted ("%Y-%m-%d");
+                               if (jd990_lib_add (lib, p.get(), src.toRawUTF8()) > 0) ++*added;
+                           },
+                           [this, added] (int read) {
+                               updateDeviceButtons();
+                               if (model.onStatus) model.onStatus (juce::String (read) + u (" Presets gelesen: ") + juce::String (*added) + u (" neu, ")
+                                                                   + juce::String (read - *added) + u (" schon in der Bibliothek"));
+                               reload();
+                           });
+    };
     loadBtn.onClick = [this] { loadSelected (false); };
     sendBtn.onClick = [this] { loadSelected (true); };
     favBtn.onClick = [this] { if (auto* e = current()) { jd990_lib_set_favorite (lib, e->id, e->favorite ? 0 : 1); reload(); } };
@@ -124,7 +142,7 @@ LibraryView::LibraryView (Model& m, const juce::String& dbPath) : model (m)
     similarBtn.onClick = [this] { if (similarBase) { similarBase.reset(); reload(); } else findSimilar(); };
 
     for (auto* c : { (juce::Component*) &searchBox, (juce::Component*) &favOnly, (juce::Component*) &importBtn, (juce::Component*) &storeBtn,
-                     (juce::Component*) &exportBtn, (juce::Component*) &deviceBtn, (juce::Component*) &list, (juce::Component*) &count, (juce::Component*) &title,
+                     (juce::Component*) &exportBtn, (juce::Component*) &deviceBtn, (juce::Component*) &presetBtn, (juce::Component*) &list, (juce::Component*) &count, (juce::Component*) &title,
                      (juce::Component*) &meta, (juce::Component*) &tags, (juce::Component*) &notes, (juce::Component*) &diffView,
                      (juce::Component*) &loadBtn, (juce::Component*) &sendBtn, (juce::Component*) &favBtn, (juce::Component*) &removeBtn,
                      (juce::Component*) &abBtn, (juce::Component*) &similarBtn })
@@ -393,14 +411,20 @@ void LibraryView::resized()
     auto r = getLocalBounds().reduced (12);
     auto right = r.removeFromRight (r.getWidth() * 5 / 12).withTrimmedLeft (8).reduced (12);
     auto top = r.removeFromTop (30);
-    searchBox.setBounds (top.removeFromLeft (std::max (180, top.getWidth() - 620)));
+    searchBox.setBounds (top.removeFromLeft (std::max (160, top.getWidth() - 456)));
     top.removeFromLeft (8);
     favOnly.setBounds (top.removeFromLeft (70));
-    for (auto* b : { &importBtn, &storeBtn, &exportBtn, &deviceBtn })
+    for (auto* b : { &importBtn, &storeBtn, &exportBtn })
     {
         top.removeFromLeft (6);
-        b->setBounds (top.removeFromLeft (b == &storeBtn || b == &deviceBtn ? 150 : 104));
+        b->setBounds (top.removeFromLeft (b == &storeBtn ? 150 : 104));
     }
+    // zweite Zeile: vom Gerät lesen (interne Bank, ROM-Presets)
+    r.removeFromTop (6);
+    auto row2 = r.removeFromTop (28);
+    deviceBtn.setBounds (row2.removeFromLeft (170));
+    row2.removeFromLeft (6);
+    presetBtn.setBounds (row2.removeFromLeft (130));
     r.removeFromTop (8);
     count.setBounds (r.removeFromBottom (22));
     list.setBounds (r);
@@ -436,5 +460,6 @@ void LibraryView::resized()
 void LibraryView::updateDeviceButtons()
 {
     deviceBtn.setEnabled (model.link.isOpen() && ! model.readingBank());
+    presetBtn.setEnabled (model.link.isOpen() && ! model.readingBank());
     sendBtn.setEnabled (current() != nullptr && model.link.isOpen());
 }

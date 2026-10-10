@@ -39,6 +39,9 @@ Model::Model() : current (jd990_patch_new())
         jd990_param_info (i, &p.info);
         all.push_back (p);
     }
+    if (auto* s = settings())      // gemerkte Namen der Speicherplätze
+        if (auto* obj = juce::JSON::parse (s->getValue ("slotNames")).getDynamicObject())
+            for (auto& kv : obj->getProperties()) slotNames[kv.name.toString()] = kv.value.toString();
     if (auto* s = settings())      // gespeicherte Unit # (Standard 17 ≙ 0x10)
         jd990_set_device_id ((uint8_t) (0x10 + juce::jlimit (17, 32, s->getIntValue ("unitNumber", 17)) - 17));
     for (uint32_t i = 0; i < jd990_perf_param_count(); ++i)
@@ -52,7 +55,14 @@ Model::Model() : current (jd990_patch_new())
         if (bankIndex >= 0)                                     // Bank lesen: nächster Patch
         {
             int n = bankIndex;
-            if (p) { ++bankRead; if (bankEach) bankEach (n, std::move (p)); }
+            if (p)
+            {
+                char nm[32];
+                jd990_patch_name (p.get(), nm, sizeof nm);
+                rememberSlotName ("I:" + juce::String (n / 8 + 1) + juce::String (n % 8 + 1), juce::String::fromUTF8 (nm).trimEnd());
+                ++bankRead;
+                if (bankEach) bankEach (n, std::move (p));
+            }
             if (++bankIndex < 64) { status (u ("Lese I:") + juce::String (bankIndex / 8 + 1) + juce::String (bankIndex % 8 + 1) + u (" …")); link.requestInternalPatch (bankIndex); }
             else { bankIndex = -1; if (bankDone) bankDone (bankRead); }
             return;
@@ -456,7 +466,7 @@ void Model::setPolling (int ms)
 
 void Model::timerCallback()
 {
-    if (! link.isOpen() || link.busy() || ! loaded || bankIndex >= 0) return;   // nie in eine laufende Übertragung hinein
+    if (! link.isOpen() || link.busy() || ! loaded || readingBank()) return;   // nie in eine laufende Übertragung hinein
     if (perfMode())
     {
         // Performance-Modus: die Performance leise vergleichen (am Gerät gewechselt? → Abweichung)
@@ -654,6 +664,7 @@ void Model::readPartFromDevice (int p)
         if (! got || ! perfMode()) return;
         if (p == editPart) { current = std::move (got); lastEditKey = -1; }
         else parts[(size_t) p] = std::move (got);
+        rememberSlotName (partSlot (p), partPatchName (p));
         status (u ("Part ") + juce::String (p + 1) + u (": „") + partPatchName (p) + u ("“ vom Gerät geladen (") + partSlot (p) + ")");
         changed();
     });
@@ -746,3 +757,139 @@ void Model::setMode (int mode)
         changed();
     });
 }
+
+// ── Namen der Speicherplätze ────────────────────────────────────────────────
+
+juce::String Model::slotName (const juce::String& slot) const
+{
+    auto it = slotNames.find (slot);
+    return it != slotNames.end() ? it->second : juce::String();
+}
+
+void Model::rememberSlotName (const juce::String& slot, const juce::String& name)
+{
+    if (slot.isEmpty() || name.isEmpty() || slotName (slot) == name) return;
+    slotNames[slot] = name;
+    if (auto* s = settings())
+    {
+        auto* obj = new juce::DynamicObject();
+        for (auto& [k, v] : slotNames) obj->setProperty (k, v);
+        s->setValue ("slotNames", juce::JSON::toString (juce::var (obj), true));
+        s->saveIfNeeded();
+    }
+}
+
+// ── Presets A:11–B:88 lesen (über Part 7 im Performance-Modus) ──────────────
+
+struct PresetRun
+{
+    std::function<void (const juce::String&, PatchPtr)> each;
+    std::function<void (int)> done;
+    int startMode = 0;                  // Gerätemodus vorher
+    PerfPtr perfBefore;                 // Performance vorher (Part 7 Bank/Nummer)
+    PatchPtr part7Before;               // Patch von Part 7 vorher
+    int read = 0;
+};
+
+void Model::readPresets (std::function<void (const juce::String&, PatchPtr)> onEach, std::function<void (int)> onDone)
+{
+    if (! link.isOpen()) { status ("Nicht verbunden"); return; }
+    if (readingBank()) return;
+    auto run = std::make_shared<PresetRun>();
+    run->each = std::move (onEach);
+    run->done = std::move (onDone);
+    run->startMode = deviceMode == 1 ? 1 : 0;
+    presetIndex = 0;
+    stopTimer();                        // kein Abgleich dazwischen
+    auto begin = [this, run] {
+        // Ausgangszustand von Part 7 merken (Performance + Patch), dann loslegen
+        uint8_t rq[32];
+        auto n = jd990_rq1_performance (1, 0, rq, sizeof rq);
+        link.request (std::vector<uint8_t> (rq, rq + n), 144, [this, run] (const std::vector<uint8_t>& b) {
+            run->perfBefore.reset (b.empty() ? nullptr : jd990_perf_from_bytes (b.data(), b.size()));
+            uint8_t rq2[32];
+            auto n2 = jd990_rq1_patch (2, 6, rq2, sizeof rq2);
+            link.request (std::vector<uint8_t> (rq2, rq2 + n2), 486, [this, run] (const std::vector<uint8_t>& b2) {
+                run->part7Before.reset (b2.empty() ? nullptr : jd990_patch_from_bytes_at (b2.data(), b2.size(), 2, 6));
+                if (! run->perfBefore || ! run->part7Before) { presetFinish (run, false); return; }
+                presetStep (0, run);
+            });
+        });
+    };
+    if (run->startMode == 1) begin();
+    else
+    {
+        // Gerät kurz in den Performance-Modus (wie der Umschalter), danach zurück
+        uint8_t msg[16];
+        auto n = jd990_system_mode_dt1 (1, msg, sizeof msg);
+        link.sendPatch (std::vector<uint8_t> (msg, msg + n));
+        status (u ("Presets lesen: Gerät kurz in den Performance-Modus …"));
+        juce::Timer::callAfterDelay (900, begin);
+    }
+}
+
+void Model::presetStep (int n, std::shared_ptr<PresetRun> run)
+{
+    if (n >= 128) { presetFinish (run, true); return; }
+    presetIndex = n;
+    auto* b = findPerf ("part.bank");
+    auto* pn = findPerf ("part.patch");
+    // Bank „Preset A/B“ + Nummer an Part 7 (Index 6) — in einer Arbeitskopie der Performance
+    PerfPtr work (jd990_perf_clone (run->perfBefore.get()));
+    std::vector<uint8_t> seq;
+    uint8_t msg[32];
+    auto k = jd990_perf_set (work.get(), b->index, 6, 1, msg, sizeof msg);
+    if (n == 0 && k > 0) seq.insert (seq.end(), msg, msg + k);
+    k = jd990_perf_set (work.get(), pn->index, 6, (uint16_t) n, msg, sizeof msg);
+    if (k > 0) seq.insert (seq.end(), msg, msg + k);
+    link.sendPatch (seq);                                   // Patchnummer: 700 ms Pause danach
+    juce::String slot = juce::String (n < 64 ? "A:" : "B:") + juce::String ((n % 64) / 8 + 1) + juce::String (n % 8 + 1);
+    status (u ("Lese Preset ") + slot + u (" … (") + juce::String (n + 1) + u ("/128)"));
+    juce::Timer::callAfterDelay (850, [this, n, run, slot] {
+        uint8_t rq[32];
+        auto r = jd990_rq1_patch (2, 6, rq, sizeof rq);
+        link.request (std::vector<uint8_t> (rq, rq + r), 486, [this, n, run, slot] (const std::vector<uint8_t>& got) {
+            PatchPtr p (got.empty() ? nullptr : jd990_patch_from_bytes_at (got.data(), got.size(), 2, 6));
+            if (! p) { presetFinish (run, false); return; }
+            char nm[32];
+            jd990_patch_name (p.get(), nm, sizeof nm);
+            rememberSlotName (slot, juce::String::fromUTF8 (nm).trimEnd());
+            ++run->read;
+            if (run->each) run->each (slot, std::move (p));
+            presetStep (n + 1, run);
+        });
+    });
+}
+
+void Model::presetFinish (std::shared_ptr<PresetRun> run, bool ok)
+{
+    // Part 7 und Performance zurück: erst die Performance (lädt den alten Speicherpatch),
+    // dann der Part-7-Patch wie vorher (er kann bearbeitet gewesen sein)
+    if (run->perfBefore)
+    {
+        auto syx = bytes ([&] (uint8_t* o, size_t c) { return jd990_perf_to_syx (run->perfBefore.get(), 1, 0, o, c); });
+        link.sendPatch (syx);
+    }
+    if (run->part7Before)
+    {
+        auto syx = bytes ([&] (uint8_t* o, size_t c) { return jd990_patch_to_syx (run->part7Before.get(), 2, 6, o, c); });
+        juce::Timer::callAfterDelay (900, [this, syx] { link.sendPatch (syx); });   // sendPatch ersetzt eine laufende Folge — daher zeitlich getrennt
+    }
+    auto finish = [this, run, ok] {
+        presetIndex = -1;
+        if (run->startMode == 0)
+        {
+            // zurück in den Patch-Modus; dort lädt das Gerät seinen Patch — der Editor-Patch kommt danach
+            uint8_t msg[16];
+            auto n = jd990_system_mode_dt1 (0, msg, sizeof msg);
+            link.sendPatch (std::vector<uint8_t> (msg, msg + n));
+            juce::Timer::callAfterDelay (900, [this] { if (! perfMode() && loaded) sendToDevice(); });
+        }
+        setPolling (5000);
+        status (ok ? juce::String (run->read) + u (" Presets gelesen") : u ("Presets lesen abgebrochen nach ") + juce::String (run->read) + u (" — keine Antwort"));
+        if (run->done) run->done (run->read);
+        changed();
+    };
+    juce::Timer::callAfterDelay (2600, finish);
+}
+

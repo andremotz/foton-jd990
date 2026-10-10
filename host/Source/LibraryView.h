@@ -64,7 +64,8 @@ private:
     juce::TextEditor searchBox;
     juce::ToggleButton favOnly { juce::String::fromUTF8 ("nur ★") };
     juce::TextButton importBtn { juce::String::fromUTF8 ("Importieren…") }, storeBtn { juce::String::fromUTF8 ("Editor-Patch speichern") },
-                     exportBtn { juce::String::fromUTF8 ("Exportieren…") }, deviceBtn { juce::String::fromUTF8 ("Vom Gerät (I:11–88)") };
+                     exportBtn { juce::String::fromUTF8 ("Exportieren…") }, deviceBtn { juce::String::fromUTF8 ("Vom Gerät (I:11–88)") },
+                     presetBtn { juce::String::fromUTF8 ("Presets (A/B)") };
     juce::ListBox list { "Bibliothek", this };
     juce::Label count;
 

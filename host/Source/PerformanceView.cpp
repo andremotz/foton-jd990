@@ -149,7 +149,9 @@ void PerformanceView::showPatchMenu (int p)
             for (int col = 0; col < 8; ++col)
             {
                 int number = base + row * 8 + col;
-                r.addItem (juce::String (letter) + ":" + juce::String (row + 1) + juce::String (col + 1), [this, p, bank, number] { model.choosePartPatch (p, bank, number); });
+                auto slot = juce::String (letter) + ":" + juce::String (row + 1) + juce::String (col + 1);
+                auto known = model.slotName (slot);     // gemerkt aus Bank-/Preset-Import und Patchwahl
+                r.addItem (known.isEmpty() ? slot : slot + "   " + known, [this, p, bank, number] { model.choosePartPatch (p, bank, number); });
             }
             sub.addSubMenu (juce::String (letter) + ":" + juce::String (row + 1) + "x", r);
         }
@@ -160,6 +162,7 @@ void PerformanceView::showPatchMenu (int p)
     menu.addSubMenu (u ("Preset B:11–B:88"), bankMenu ("B", 1, 64));
     menu.addSeparator();
     menu.addItem (u ("Änderungen am Part-Patch gehen dabei verloren"), false, false, nullptr);
+    menu.addItem (u ("Namen: Bibliothek › „Vom Gerät (I:11–88)“ bzw. „Presets (A/B)“ einmal ausführen"), false, false, nullptr);
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (strips[p].patchBtn));
 }
 
