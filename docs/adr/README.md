@@ -34,3 +34,4 @@ Modulschnitt stehen in [03-architektur.md](../03-architektur.md).
 | [20](0020-ci-gitlab.md) | GitLab-CI (Rust Pflicht, Host optional) | ersetzt (GitHub Actions, ADR-23) |
 | [22](0022-performance-modus.md) | Performance-Modus: Temp-Bereiche, Moduswechsel aus der UI, Setups im Editor | angenommen (Planung) |
 | [23](0023-veroeffentlichung.md) | Open Source auf GitHub (FotonJD990): AGPLv3, englische README, frische Historie, GitHub als Hauptort, Arbeitsnotizen privat | angenommen |
+| [24](0024-openspec-fuer-vorhaben.md) | Vorhaben als OpenSpec-Change mit Workitems, eigener Branch je Change | angenommen |

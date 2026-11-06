@@ -1,0 +1,29 @@
+schema: spec-driven
+
+context: |
+  Language: German
+  All artifacts must be written in German.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+  Projekt: FotonJD990 — Editor/Librarian für den Roland JD-990 (Rust-Kern + JUCE-9-Host).
+  Grundsatzentscheidungen stehen als ADRs in docs/adr/, Anforderungen in
+  docs/10-anforderungen.md. Ein OpenSpec-Change verweist darauf statt sie zu wiederholen.
+  Unverrückbar (ADR-7/22): Geschrieben wird nur in die Temp-Bereiche 03, 01, 02 00–06
+  und System mode; der interne Speicher des Geräts nie.
+
+rules:
+  proposal:
+    - Sagen, was ausdrücklich nicht dazugehört
+    - Den Branch nennen, auf dem der Change umgesetzt wird
+  tasks:
+    - Jede Aufgabe ist ein prüfbares Workitem; Hardwaretests als eigene Aufgaben
+    - Letzte Aufgabengruppe ist die Abnahme vor dem Merge nach main
+
+operations:
+  apply:
+    guidance:
+      - Umsetzung nur auf dem im Proposal genannten Branch, Merge nach main erst nach Abnahme
+      - Abgehakte Aufgaben in tasks.md im selben Commit wie die Umsetzung
+  archive:
+    guidance:
+      - Wesentliche Entscheidungen aus design.md als ADR übernehmen
