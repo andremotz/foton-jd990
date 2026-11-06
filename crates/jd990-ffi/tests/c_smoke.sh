@@ -12,6 +12,9 @@ MINGW*|MSYS*)
     # Staticlib zu cl passen (Default /MT). System-Bibliotheken wie von
     # `cargo rustc -- --print native-static-libs` (x86_64-pc-windows-msvc).
     # -wd4127: do-while(0)-Makro (CHECK) — reine Makro-Idiomatik, kein Fehler.
+    # Git Bash bringt ein eigenes /usr/bin/link mit, das den MSVC-Linker verdeckt:
+    # das Verzeichnis von cl (dort liegt auch link.exe) nach vorn in den PATH.
+    PATH="$(dirname "$(command -v cl)"):$PATH"
     RUSTFLAGS="-C target-feature=+crt-static" cargo build -q -p jd990-ffi
     cl -nologo -W4 -WX -wd4127 -D_CRT_SECURE_NO_WARNINGS -std:c11 \
        -I crates/jd990-ffi/include crates/jd990-ffi/tests/smoke.c \
