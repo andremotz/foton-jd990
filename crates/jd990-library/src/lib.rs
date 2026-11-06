@@ -97,14 +97,28 @@ impl Library {
         Ok(Library { db })
     }
 
-    /// Standardort: ~/Library/Application Support/JD-990 Editor/library.sqlite
-    /// (überschreibbar mit JD990_LIBRARY).
+    /// Standardort der Bibliothek (überschreibbar mit JD990_LIBRARY):
+    /// macOS `~/Library/Application Support/JD-990 Editor/` (wie die
+    /// Einstellungen der App), Windows `%APPDATA%\JD-990 Editor\`, sonst
+    /// XDG-Standard (`~/.config/JD-990 Editor/`).
     pub fn default_path() -> std::path::PathBuf {
         if let Ok(p) = std::env::var("JD990_LIBRARY") {
             return p.into();
         }
-        let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
-        Path::new(&home).join("Library/Application Support/JD-990 Editor/library.sqlite")
+        if cfg!(target_os = "macos") {
+            let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+            Path::new(&home).join("Library/Application Support/JD-990 Editor/library.sqlite")
+        } else if cfg!(target_os = "windows") {
+            // gleicher Ordnername wie unter macOS → %APPDATA%\JD-990 Editor\
+            let appdata = std::env::var("APPDATA").unwrap_or_else(|_| ".".into());
+            Path::new(&appdata).join("JD-990 Editor/library.sqlite")
+        } else {
+            let config = std::env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| {
+                let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+                format!("{home}/.config")
+            });
+            Path::new(&config).join("JD-990 Editor/library.sqlite")
+        }
     }
 
     fn hash(p: &Patch) -> String {

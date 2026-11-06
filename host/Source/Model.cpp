@@ -29,6 +29,14 @@ namespace
             if (b[i] == 0xF7) fn (b.data() + start, i + 1 - start);
         }
     }
+    /** Gibt es diesen Port-Namen (Ein- oder Ausgang)? Für die Fehlermeldung:
+     *  fehlt er, ist das Interface aus; ist er da, ist er belegt (Windows). */
+    bool portExists (const juce::String& name)
+    {
+        for (auto& d : juce::MidiOutput::getAvailableDevices()) if (d.name == name) return true;
+        for (auto& d : juce::MidiInput::getAvailableDevices()) if (d.name == name) return true;
+        return false;
+    }
 }
 
 Model::Model() : current (jd990_patch_new())
@@ -419,9 +427,20 @@ bool Model::connect (const juce::String& port, bool quiet)
 {
     if (! link.open (port))
     {
-        if (! quiet) status (u ("„") + port + u ("“ nicht vorhanden — Interface aus? Verbinde automatisch, sobald der Port auftaucht."));
+        if (! quiet)
+        {
+            if (port.isEmpty())
+                status (u ("Kein MIDI-Port gefunden — verbinde automatisch, sobald einer auftaucht."));
+            else if (portExists (port))
+                status (u ("Port „") + port + u ("“ ist belegt oder nicht verfügbar — unter Windows kann ein MIDI-Port meist "
+                                        "nur von einem Programm gleichzeitig geöffnet werden (z. B. DAW schließen)."));
+            else
+                status (u ("„") + port + u ("“ nicht vorhanden — Interface aus? Verbinde automatisch, sobald der Port auftaucht."));
+        }
         return false;
     }
+    if (auto* s = settings())      // zuletzt genutzten Port merken (Standard unter Windows/Linux)
+        { s->setValue ("port", port); s->saveIfNeeded(); }
     status ("Verbunden: " + port);
     checkDeviceMode();             // erst den Modus des Geräts, dann das Passende lesen
     setPolling (5000);

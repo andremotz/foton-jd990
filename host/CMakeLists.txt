@@ -3,6 +3,7 @@
 #
 #  cmake -S host -B host/build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release
 #  cmake --build host/build -j
+#  Windows (Visual Studio): cmake -S host -B host/build && cmake --build host/build --config Release
 #
 #  JUCE liegt unter host/JUCE (gitignored). Version: 9.0.2 (immer das neueste Release;
 #  Klonbefehl in README.md).
@@ -14,15 +15,35 @@ project(FotonJD990 VERSION 0.1.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "13.0" CACHE STRING "")
 
+# Windows/MSVC: statische C-Runtime (/MT bzw. /MTd) — passend zur Rust-Staticlib,
+# die mit `-C target-feature=+crt-static` gebaut wird (design.md Entscheidung 4:
+# keine VC-Redist nötig). Muss vor JUCE stehen, damit auch dessen Ziele es erben
+# (JUCE wählt danach seine vorgebauten Bibliotheken: MT/MTd/MD/MDd).
+if(MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 add_subdirectory(JUCE)
 
 # ── Rust-Kern ────────────────────────────────────────────────────────────────
-find_program(CARGO cargo HINTS /opt/homebrew/opt/rustup/bin $ENV{HOME}/.cargo/bin REQUIRED)
+find_program(CARGO cargo HINTS /opt/homebrew/opt/rustup/bin $ENV{HOME}/.cargo/bin $ENV{USERPROFILE}/.cargo/bin REQUIRED)
 get_filename_component(CARGO_DIR ${CARGO} DIRECTORY)   # rustc liegt daneben (Homebrew-rustup ist keg-only)
 set(RUST_TARGET_DIR ${CMAKE_BINARY_DIR}/rust)
-set(RUST_LIB ${RUST_TARGET_DIR}/release/libjd990_ffi.a)
+if(MSVC)
+    # MSVC: die Staticlib heißt jd990_ffi.lib (kein lib-Präfix, .lib statt .a)
+    # und wird mit statischer C-Runtime gebaut — konsistent zu /MT oben.
+    set(RUST_LIB ${RUST_TARGET_DIR}/release/jd990_ffi.lib)
+    set(RUST_ENV ${CMAKE_COMMAND} -E env
+        "CARGO_TARGET_DIR=${RUST_TARGET_DIR}"
+        "RUSTFLAGS=-C target-feature=+crt-static")
+else()
+    set(RUST_LIB ${RUST_TARGET_DIR}/release/libjd990_ffi.a)
+    set(RUST_ENV ${CMAKE_COMMAND} -E env
+        "PATH=${CARGO_DIR}:$ENV{PATH}"
+        "CARGO_TARGET_DIR=${RUST_TARGET_DIR}")
+endif()
 add_custom_target(jd990_ffi_build
-    COMMAND ${CMAKE_COMMAND} -E env "PATH=${CARGO_DIR}:$ENV{PATH}" CARGO_TARGET_DIR=${RUST_TARGET_DIR} ${CARGO} build --release -p jd990-ffi
+    COMMAND ${RUST_ENV} ${CARGO} build --release -p jd990-ffi
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/..
     BYPRODUCTS ${RUST_LIB}
     COMMENT "Rust: jd990-ffi")
@@ -31,7 +52,15 @@ set_target_properties(jd990_ffi PROPERTIES
     IMPORTED_LOCATION ${RUST_LIB}
     INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_SOURCE_DIR}/../crates/jd990-ffi/include)
 add_dependencies(jd990_ffi jd990_ffi_build)
-if(UNIX AND NOT APPLE)
+if(MSVC)
+    # Rust-Staticlib unter MSVC: System-Bibliotheken ausdrücklich dazulinken.
+    # Stand von `cargo rustc --target x86_64-pc-windows-msvc -- --print
+    # native-static-libs` (kernel32/ntdll/userenv/ws2_32/dbghelp), um bcrypt
+    # und advapi32 ergänzt (Hash-Zufall/Registry, je nach std-Fläche) —
+    # zu viel dazugelinkte Bibliotheken sind harmlos, fehlende sind fatal.
+    set_target_properties(jd990_ffi PROPERTIES INTERFACE_LINK_LIBRARIES
+        "ws2_32;userenv;bcrypt;ntdll;advapi32;kernel32;dbghelp")
+elseif(UNIX AND NOT APPLE)
     # Rust-Staticlib unter Linux: System-Bibliotheken ausdrücklich dazulinken
     set_target_properties(jd990_ffi PROPERTIES INTERFACE_LINK_LIBRARIES "pthread;dl;m")
 endif()
@@ -70,3 +99,9 @@ target_link_libraries(FotonJD990
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags)
+
+if(MSVC)
+    # Quellen sind UTF-8 (deutsche Umlaute, „…”): ohne /utf-8 rät MSVC nach
+    # Systemcodepage und warnt (C4566/C4828) oder verfälscht Zeichen.
+    target_compile_options(FotonJD990 PRIVATE /utf-8)
+endif()

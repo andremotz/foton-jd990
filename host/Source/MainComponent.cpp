@@ -2,15 +2,18 @@
 
 namespace
 {
-    const juce::String defaultPort = "Unitor8/AMT8 Port 2";
+    #if JUCE_MAC
+    // ADR-10: Standard-Port des Studio-Setups (Unitor8 MkII, Port 2). Unter
+    // Windows/Linux gibt es keinen bekannten Standard-Port — siehe refreshPorts().
+    const juce::String defaultPort { "Unitor8/AMT8 Port 2" };
+    #endif
     juce::String u (const char* s) { return juce::String::fromUTF8 (s); }
 }
 
 MainComponent::MainComponent (bool autoConnectAtStart, const juce::String& libraryPath) : autoConnect (autoConnectAtStart)
 {
     setLookAndFeel (&lnf);
-    refreshPorts();
-    portBox.setText (defaultPort, juce::dontSendNotification);
+    refreshPorts();     // setzt auch den Port-Namen (Standard, gespeicherten oder ersten)
     for (auto* c : { (juce::Component*) &portBox, (juce::Component*) &connectBtn, (juce::Component*) &readBtn, (juce::Component*) &sendBtn,
                      (juce::Component*) &loadBtn, (juce::Component*) &saveBtn, (juce::Component*) &initBtn, (juce::Component*) &undoBtn,
                      (juce::Component*) &redoBtn, (juce::Component*) &historyBtn, (juce::Component*) &pollBtn, (juce::Component*) &syncState, (juce::Component*) &status,
@@ -127,7 +130,21 @@ void MainComponent::refreshPorts()
     portBox.clear (juce::dontSendNotification);
     for (auto& d : DeviceLink::outputs())
         portBox.addItem (d.name, portBox.getNumItems() + 1);
-    portBox.setText (current.isNotEmpty() ? current : defaultPort, juce::dontSendNotification);
+    if (current.isEmpty())
+    {
+        #if JUCE_MAC
+        current = defaultPort;      // wie bisher: Standard-Port aus ADR-10
+        #else
+        // Windows/Linux: kein plattformspezifischer Standard-Port hart codieren.
+        // Zuletzt gewählten Port aus den Einstellungen nehmen (ADR-10: Unit # und
+        // Port bleiben erhalten), sonst den ersten verfügbaren.
+        if (auto* s = Model::settings())
+            if (auto saved = s->getValue ("port"); saved.isNotEmpty()) current = saved;
+        if (current.isEmpty() && portBox.getNumItems() > 0)
+            current = portBox.getItemText (0);
+        #endif
+    }
+    portBox.setText (current, juce::dontSendNotification);
 }
 
 void MainComponent::showHistory()

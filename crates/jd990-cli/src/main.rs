@@ -26,7 +26,8 @@
 //!   jd990 perf-set <id> [1…8] <rohwert>  Performance-/Part-Parameter, geprüft (zeigt, ob sich Part-Patches ändern)
 //!   jd990 perf-sweep [filter]         HIL über Common + Parts 1–7, Nachbarn prüfen, danach Ausgangszustand
 //!
-//! Bibliothek (M5; Ort: JD990_LIBRARY, sonst ~/Library/Application Support/JD-990 Editor/):
+//! Bibliothek (M5; Ort: JD990_LIBRARY, sonst macOS ~/Library/Application Support/JD-990 Editor/,
+//! Windows %APPDATA%\JD-990 Editor\):
 //!   jd990 lib import <datei>…         .syx/.mid (Einzelpatch oder Bank), Dubletten werden erkannt
 //!   jd990 lib list [suche] [--fav]    Einträge (Suche in Name, Quelle, Tags, Notizen)
 //!   jd990 lib show <id>               Eintrag mit allen Parametern

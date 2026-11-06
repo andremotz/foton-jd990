@@ -1,4 +1,5 @@
 #include "MainComponent.h"
+#include <cstdio>   // std::printf/fprintf/fflush (unter MSVC nicht garantiert transitiv inkludiert)
 
 class FotonJD990Application : public juce::JUCEApplication
 {

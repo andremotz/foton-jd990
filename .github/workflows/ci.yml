@@ -1,7 +1,11 @@
-# GitHub-CI (ADR-23): Rust-Kern immer, macOS-App-Build mit JUCE.
+# GitHub-CI (ADR-23): Rust-Kern immer, macOS-App-Build mit JUCE, Windows-Build
+# (MSVC), damit Windows nicht unbemerkt bricht (add-release-builds, Aufgabe 1).
 # Hardware-Tests (HIL) laufen nie in der CI — sie brauchen einen JD-990.
 name: CI
 on: [push, pull_request]
+
+env:
+  JUCE_VERSION: 9.0.2   # an einer Stelle pflegen (wie im README; design.md Entscheidung 5)
 
 jobs:
   rust:
@@ -21,6 +25,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: git clone --depth 1 --branch 9.0.2 https://github.com/juce-framework/JUCE.git host/JUCE
+      - run: git clone --depth 1 --branch ${{ env.JUCE_VERSION }} https://github.com/juce-framework/JUCE.git host/JUCE
       - run: cmake -S host -B host/build -DCMAKE_BUILD_TYPE=Release
       - run: cmake --build host/build -j 3
+
+  # Rust-Kern unter Windows: Tests + C-Smoke-Test über den MSVC-Compiler
+  # (cl statt cc; die MSVC-Umgebung liefert msvc-dev-cmd).
+  windows-rust:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ilammy/msvc-dev-cmd@v1
+      - run: cargo test
+      # System-Bibliotheken der Staticlib ausgeben (Dokumentation/Abgleich mit
+      # host/CMakeLists.txt; Build mit derselben CRT-Einstellung wie die App)
+      - run: cargo rustc -p jd990-ffi --release -- --print native-static-libs
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
+      - run: sh crates/jd990-ffi/tests/c_smoke.sh
+        shell: bash
+
+  # Windows-App (MSVC, x64): nur bauen — der Link der Rust-Staticlib und die
+  # MSVC-Kompilierung werden hier das erste Mal unter CI geprüft.
+  windows-app:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: git clone --depth 1 --branch ${{ env.JUCE_VERSION }} https://github.com/juce-framework/JUCE.git host/JUCE
+      - run: cmake -S host -B host/build -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build host/build --config Release -j 3
