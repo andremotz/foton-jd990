@@ -4,12 +4,12 @@ Branch: `ci/release-builds`
 
 ## 1. Windows-Build lauffähig machen
 
-- [ ] 1.1 CI-Job `windows-app` (`windows-latest`, MSVC, JUCE 9.0.2) in `ci.yml`, zunächst nur bauen
-- [ ] 1.2 Rust-Staticlib unter MSVC linken (Systembibliotheken, `/MT`-Runtime passend zur Rust-Toolchain)
-- [ ] 1.3 Kompilierfehler/Warnungen unter MSVC beheben (`-D warnings`-Gleichstand mit macOS)
+- [x] 1.1 CI-Job `windows-app` (`windows-latest`, MSVC, JUCE 9.0.2) in `ci.yml`, zunächst nur bauen
+- [x] 1.2 Rust-Staticlib unter MSVC linken (Systembibliotheken, `/MT`-Runtime passend zur Rust-Toolchain)
+- [x] 1.3 Kompilierfehler/Warnungen unter MSVC beheben (`-D warnings`-Gleichstand mit macOS)
 - [x] 1.4 Einstellungs- und Bibliotheksordner unter `%APPDATA%\JD-990 Editor\` prüfen
 - [x] 1.5 Portauswahl/automatisches Verbinden (ADR-10) mit Windows-Portnamen; Meldung, wenn der Port von einem anderen Programm belegt ist
-- [ ] 1.6 `cargo test` und C-Smoke-Test auch auf Windows in der CI
+- [x] 1.6 `cargo test` und C-Smoke-Test auch auf Windows in der CI
 
 ## 2. macOS-Release-Artefakt
 
