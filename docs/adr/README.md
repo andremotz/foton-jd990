@@ -35,3 +35,7 @@ Modulschnitt stehen in [03-architektur.md](../03-architektur.md).
 | [22](0022-performance-modus.md) | Performance-Modus: Temp-Bereiche, Moduswechsel aus der UI, Setups im Editor | angenommen (Planung) |
 | [23](0023-veroeffentlichung.md) | Open Source auf GitHub (FotonJD990): AGPLv3, englische README, frische Historie, GitHub als Hauptort, Arbeitsnotizen privat | angenommen |
 | [24](0024-openspec-fuer-vorhaben.md) | Vorhaben als OpenSpec-Change mit Workitems, eigener Branch je Change | angenommen |
+| 25 | *reserviert:* Port-Besitz im Plugin-Modus (`add-plugin-mode`, Aufgabe 1.5) | — |
+| [26](0026-english-for-new-docs.md) | New ADRs, specs and backlog items in English; German docs translated on revision | proposed |
+| [27](0027-one-write-rule-two-checkpoints.md) | One write-permission rule in the Rust core, checked in `jd990-midi` and the host | proposed |
+| [28](0028-no-panics-across-c-abi.md) | No panic may cross the C ABI (precondition for plugin mode) | proposed |
