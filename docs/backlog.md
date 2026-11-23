@@ -51,7 +51,7 @@ Suggested order: `unify-write-guard` → `harden-quality-gates` → `add-release
 | # | Item | Evidence | Status |
 |---|---|---|---|
 | R1 | README: "22 architecture decision records (in German)" and the language note are stale after ADR-26–28 | `README.md` table "How it is built", note on language | ⏳ |
-| R2 | When ADR-26 is accepted: `openspec/config.yaml` → English, addendum in ADR-24 and ADR-23 | `openspec/config.yaml` (`Language: German`) | ⏳ |
+| R2 | When ADR-26 is accepted: `openspec/config.yaml` → English, addendum in ADR-24 and ADR-23 | `openspec/config.yaml` (`Language: German`) | ✅ 2026-11-23 |
 | R3 | Translate German docs when they are revised anyway; start with `docs/adr/README.md`, `03-architektur.md`, `10-anforderungen.md` | ADR-26 point 2 | ⏳ |
 | R4 | `CONTRIBUTING.md`: build, tests, HIL rules (never in CI), "no Roland data in the repo", OpenSpec flow and branch naming | none present | ⏳ |
 | R5 | `CHANGELOG.md`, started with the first tagged release (`add-release-builds`) | none present | ⏳ |

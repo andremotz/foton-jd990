@@ -1,29 +1,30 @@
 schema: spec-driven
 
 context: |
-  Language: German
-  All artifacts must be written in German.
+  Language: English
+  All new artifacts must be written in English (ADR-26).
+  Changes started in German (add-release-builds, add-plugin-mode) may stay German until archived.
   Keep OpenSpec structural headings and SHALL/MUST keywords in English.
 
-  Projekt: FotonJD990 — Editor/Librarian für den Roland JD-990 (Rust-Kern + JUCE-9-Host).
-  Grundsatzentscheidungen stehen als ADRs in docs/adr/, Anforderungen in
-  docs/10-anforderungen.md. Ein OpenSpec-Change verweist darauf statt sie zu wiederholen.
-  Unverrückbar (ADR-7/22): Geschrieben wird nur in die Temp-Bereiche 03, 01, 02 00–06
-  und System mode; der interne Speicher des Geräts nie.
+  Project: FotonJD990 — editor/librarian for the Roland JD-990 (Rust core + JUCE 9 host).
+  Fundamental decisions are ADRs in docs/adr/, requirements are in
+  docs/10-anforderungen.md. An OpenSpec change refers to them instead of repeating them.
+  Non-negotiable (ADR-7/22): writes go only to the temp areas 03, 01, 02 00–06
+  and System mode; never to the device's internal memory.
 
 rules:
   proposal:
-    - Sagen, was ausdrücklich nicht dazugehört
-    - Den Branch nennen, auf dem der Change umgesetzt wird
+    - State what is explicitly not included
+    - Name the branch the change is implemented on
   tasks:
-    - Jede Aufgabe ist ein prüfbares Workitem; Hardwaretests als eigene Aufgaben
-    - Letzte Aufgabengruppe ist die Abnahme vor dem Merge nach main
+    - Every task is a verifiable work item; hardware tests are separate tasks
+    - The last task group is the acceptance before merging into main
 
 operations:
   apply:
     guidance:
-      - Umsetzung nur auf dem im Proposal genannten Branch, Merge nach main erst nach Abnahme
-      - Abgehakte Aufgaben in tasks.md im selben Commit wie die Umsetzung
+      - Implement only on the branch named in the proposal; merge into main only after acceptance
+      - Tick off tasks in tasks.md in the same commit as the implementation
   archive:
     guidance:
-      - Wesentliche Entscheidungen aus design.md als ADR übernehmen
+      - Record significant decisions from design.md as an ADR

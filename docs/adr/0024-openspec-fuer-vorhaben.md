@@ -32,3 +32,13 @@
 
 * Kleine Korrekturen brauchen keinen Change.
 * `openspec validate` gehört vor jeden Merge eines Changes.
+
+---
+
+## Addendum 2026-11-23 — Language (ADR-26)
+
+Point 4 is changed by [ADR-26](0026-english-for-new-docs.md), accepted by André on
+2026-11-23: new OpenSpec artifacts are written in **English**, and `openspec/config.yaml`
+says `Language: English`. The changes `add-release-builds` and `add-plugin-mode`, which were
+started in German, may stay German until they are archived. The rest of point 4 still
+applies (OpenSpec keywords in English, no generated AI-tool instructions in the repo).

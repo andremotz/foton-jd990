@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | proposed |
+| **Status** | accepted (André, 2026-11-23) |
 | **Date** | 2026-11-22 |
 | **Origin** | Repo review 2026-11-22; André: "let's write ADRs, specs and further work items as markdown, in English" |
 | **Amends** | ADR-24 point 4 (artifacts in German), ADR-23 point 2 (docs stay German for now), `openspec/config.yaml` (`Language: German`) |
@@ -21,8 +21,8 @@ most of the reasoning lives.
 2. Existing German documents stay valid as they are. They are **not** translated in one
    go. A document is translated when it is substantially revised anyway (tracked in
    `docs/backlog.md`).
-3. `openspec/config.yaml` switches its `context` to `Language: English` once this ADR is
-   accepted. The two open changes (`add-release-builds`, `add-plugin-mode`) may stay
+3. `openspec/config.yaml` switches its `context` to `Language: English` (done
+   2026-11-23). The two open changes (`add-release-builds`, `add-plugin-mode`) may stay
    German until they are archived.
 4. The user interface language is a separate question (ADR-23 "English UI as an
    option") and is not decided here.
@@ -36,4 +36,4 @@ plugin mode), so the review ADRs start at 26.
   implicitly through its title.
 * The README line "22 architecture decision records (in German)" and the language note
   need updating (backlog).
-* When accepted: add a dated addendum ("Nachtrag") to ADR-24 and flip the OpenSpec config.
+* Accepted 2026-11-23: OpenSpec config switched to English; addenda in ADR-23 and ADR-24.
