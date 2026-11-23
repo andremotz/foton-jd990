@@ -7,10 +7,8 @@ jobs:
   rust:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
+      - uses: actions/checkout@v5
+      - run: rustup toolchain install   # version and components from rust-toolchain.toml
       - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
@@ -19,8 +17,8 @@ jobs:
   macos-app:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v5
+      - run: rustup toolchain install   # version from rust-toolchain.toml
       - run: git clone --depth 1 --branch 9.0.2 https://github.com/juce-framework/JUCE.git host/JUCE
       - run: cmake -S host -B host/build -DCMAKE_BUILD_TYPE=Release
       - run: cmake --build host/build -j 3

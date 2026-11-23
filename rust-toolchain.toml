@@ -1,0 +1,6 @@
+# Pinned Rust toolchain: a new stable release must not break CI unannounced
+# (clippy 1.100 added a lint that failed the build). Raise deliberately.
+[toolchain]
+channel = "1.100.0"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

@@ -417,7 +417,7 @@ fn print_setup(s: &jd990_core::Setup) {
     for part in 0..8 {
         let on = p.get(find("part.rx_sw").unwrap(), Some(part)) == 1;
         let ch = p.get(find("part.rx_ch").unwrap(), Some(part)) + 1;
-        let patch = if part < 7 { format!("\"{}\"", s.patches[part].name().trim_end()) } else { "(Rhythm)".into() };
+        let patch = s.patches.get(part).map_or_else(|| "(Rhythm)".into(), |pt| format!("\"{}\"", pt.name().trim_end()));
         println!("  Part {} {} Kanal {ch:2} {:5} {patch:20} Level {:3} Reserve {}", part + 1, if on { "an " } else { "aus" }, p.patch_slot(part),
                  p.get(find("part.level").unwrap(), Some(part)), p.get(find(&format!("perf.reserve_{}", part + 1)).unwrap(), None));
     }
