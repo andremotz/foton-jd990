@@ -62,3 +62,12 @@ umschwenken, sonst wird das Development zu komplex."
   App-Aufnahme in Retina-Auflösung im macOS-Fensterrahmen auf eigenem
   Hintergrund, Demo-Patch `host/tests/fixtures/demo.syx`.
 
+
+---
+
+## Addendum 2026-11-23 — Documentation language (ADR-26)
+
+Point 2 ("docs stay German for now") is changed by [ADR-26](0026-english-for-new-docs.md):
+new ADRs, OpenSpec changes and backlog items are written in English. Existing German
+documents are translated when they are next revised. The UI language is unchanged
+(English UI remains an option, see Consequences).
