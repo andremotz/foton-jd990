@@ -17,14 +17,16 @@
 - Drift between table, Rust and host is caught by tests without hardware.
 
 **Non-Goals:**
-- Checksum validation of outgoing messages (the core builds them).
 - Read requests (RQ1); they can't change device memory.
 
 ## Decisions
 
-1. **Rule on raw bytes in the core.** `write_allowed_bytes(&[u8]) -> bool` parses the
-   frame and delegates to `write_allowed(address, data)`. The host can pass exactly what
-   it is about to send, so the check covers the real bytes.
+1. **Rule on raw bytes in the core.** `write_allowed_bytes(&[u8]) -> bool` decodes the
+   message with `Dt1::decode` (frame, model ID, command, checksum, 7-bit data) and
+   delegates to `write_allowed(address, data)`. The host passes exactly what it is about
+   to send, so the check covers the real bytes. A message with a wrong checksum is
+   refused too. The core builds every outgoing message, so this costs nothing.
+   `write_allowed` additionally refuses empty data and data bytes ≥ 0x80.
 2. **Device ID ignored by the rule.** Any unit # (0x10–0x1F) is fine; the rule is about
    addresses.
 3. **Test vectors as a Rust table + generated C array.** `build.rs` or a small test

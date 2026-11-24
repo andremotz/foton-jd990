@@ -1,5 +1,6 @@
 /* Smoke-Test der C-ABI: lädt einen Patch, liest/setzt Parameter, formatiert. */
 #include "jd990.h"
+#include "write_vectors.h"   /* gemeinsame Testvektoren der Freigabeliste (ADR-27) */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -139,6 +140,19 @@ int main(int argc, char **argv) {
     CHECK(jd990_system_mode_dt1(0, moved, sizeof moved) == 12 && moved[2] == 0x13);
     CHECK(jd990_rq1_temp_patch(moved, sizeof moved) > 0 && moved[2] == 0x13);
     CHECK(jd990_set_device_id(0x10) == 0);
+    /* Freigabeliste (ADR-7/22/27): jeder gemeinsame Testvektor über die C-ABI */
+    for (size_t i = 0; i < JD990_WRITE_VECTOR_COUNT; ++i) {
+        const Jd990WriteVector *v = &jd990_write_vectors[i];
+        if (jd990_dt1_allowed(v->msg, v->len) != v->allowed) {
+            fprintf(stderr, "FEHLER Freigabe-Vektor \"%s\": erwartet %d\n", v->name, v->allowed);
+            return 1;
+        }
+    }
+    CHECK(jd990_dt1_allowed(NULL, 0) == JD990_E_NULL);
+    /* Erzeugte Nachrichten sind freigegeben: Parameter-DT1, auf Part 3 umadressiert, System mode */
+    CHECK(jd990_dt1_allowed(msg, (size_t)n) == 1);
+    CHECK(jd990_dt1_retarget(msg, (size_t)n, 2, 2, moved, sizeof moved) == n && jd990_dt1_allowed(moved, (size_t)n) == 1);
+    CHECK(jd990_system_mode_dt1(1, moved, sizeof moved) == 12 && jd990_dt1_allowed(moved, 12) == 1);
     jd990_patch_free(tp);
     jd990_perf_free(pf);
 

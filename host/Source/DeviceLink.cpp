@@ -33,17 +33,18 @@ namespace
 
 bool DeviceLink::allowedDt1 (const uint8_t* m, size_t len)
 {
-    if (len < 12 || m[0] != 0xF0 || m[1] != 0x41 || m[3] != 0x57 || m[4] != 0x12 || m[len - 1] != 0xF7) return false;
-    size_t data = len - 11;
-    int area = m[5], number = m[6], off = (m[7] << 7) | m[8];
-    switch (area)
-    {
-        case 0x03: return number == 0 && off + (int) data <= 486;
-        case 0x02: return number <= 6 && off + (int) data <= 486;
-        case 0x01: return number == 0 && off + (int) data <= 144;
-        case 0x00: return number == 0 && off == 0 && data == 1 && m[9] <= 1;   // nur System mode PATCH/PERFORMANCE
-        default:   return false;
-    }
+    return m != nullptr && jd990_dt1_allowed (m, len) == 1;   // einzige Freigabeliste: Rust-Kern (ADR-27)
+}
+
+void DeviceLink::reportRefused (const uint8_t* m, size_t len)
+{
+    ++refused;
+    juce::String address = "?";
+    if (m != nullptr && len >= 9)
+        address = juce::String::toHexString (m + 5, 4, 1).toUpperCase();
+    juce::Logger::writeToLog ("DeviceLink: write refused (ADR-7), address " + address + ", " + juce::String ((int) len) + " bytes");
+    jassertfalse;   // im Debug-Build anhalten: der Aufrufer hat eine nicht freigegebene Nachricht erzeugt
+    juce::MessageManager::callAsync ([this, address] { if (onRefused) onRefused (address); });
 }
 
 DeviceLink::DeviceLink() { startTimer (5); }
@@ -134,6 +135,14 @@ void DeviceLink::requestInternalPatch (int number)
 
 void DeviceLink::request (std::vector<uint8_t> rq1, int size, std::function<void (const std::vector<uint8_t>&)> done)
 {
+    // Nur Leseanfragen (RQ1, 15 Byte) — über diesen Weg darf nie geschrieben werden (ADR-27)
+    bool isRq1 = rq1.size() == 15 && rq1[0] == 0xF0 && rq1[1] == 0x41 && rq1[3] == 0x57 && rq1[4] == 0x11 && rq1.back() == 0xF7;
+    if (! isRq1)
+    {
+        reportRefused (rq1.data(), rq1.size());
+        if (done) juce::MessageManager::callAsync ([done] { done ({}); });
+        return;
+    }
     const juce::ScopedLock sl (lock);
     requests.push_back ({ std::move (rq1), size, std::move (done) });
     if (! waiting) startNextRequest();
@@ -155,7 +164,7 @@ void DeviceLink::startNextRequest()
 
 void DeviceLink::queueParam (const uint8_t* msg, size_t len)
 {
-    if (! allowedDt1 (msg, len)) { jassertfalse; return; }   // nur freigegebene Temp-Bereiche
+    if (! allowedDt1 (msg, len)) { reportRefused (msg, len); return; }   // nur freigegebene Temp-Bereiche
     const juce::ScopedLock sl (lock);
     std::vector<uint8_t> m (msg, msg + len);
     pending[addressOf (m)] = std::move (m);
@@ -171,7 +180,7 @@ void DeviceLink::sendPatch (const std::vector<uint8_t>& syx)
         if (syx[i] == 0xF0) start = i;
         if (syx[i] == 0xF7)
         {
-            if (! allowedDt1 (syx.data() + start, i + 1 - start)) { jassertfalse; bulk.clear(); return; }
+            if (! allowedDt1 (syx.data() + start, i + 1 - start)) { reportRefused (syx.data() + start, i + 1 - start); bulk.clear(); return; }
             bulk.emplace_back (syx.begin() + (long) start, syx.begin() + (long) i + 1);
         }
     }

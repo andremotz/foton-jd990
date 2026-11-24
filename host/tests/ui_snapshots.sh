@@ -44,6 +44,7 @@ scenario zoom130       --scale=130 --load=$FIX/bass.syx --set=tone.lfo1.depth_pi
 scenario alle          --load=$FIX/bass.syx --tone=B --tab=2                                || fail=1
 scenario bibliothek    --library=$OUT/bibliothek-lib.sqlite --libimport=$FIX/init.syx --libimport=$FIX/bass.syx \
                        --load=$FIX/init.syx --libsearch=bass --libselect=0 --tab=3          || fail=1
+scenario verweigert    --init --refusetest --tab=0                                          || fail=1
 scenario vergleich2    --library=$OUT/vergleich2-lib.sqlite --libimport=$FIX/init.syx --libimport=$FIX/bass.syx \
                        --libselect=0,1 --tab=3                                              || fail=1
 SIZE=1320x1000 \

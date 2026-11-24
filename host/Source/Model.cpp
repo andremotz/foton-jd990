@@ -81,6 +81,10 @@ Model::Model() : current (jd990_patch_new())
         status (s);
     };
     link.onSent = [this] (const std::vector<uint8_t>& m) { lastSent = m; changed(); };
+    link.onRefused = [this] (const juce::String& address) {   // ADR-27: nie still verwerfen
+        setSync (u ("⛔ Schreiben verweigert (Adresse ") + address + u (") — nicht gesendet"), juce::Colours::red);
+        changed();
+    };
     setSync (u ("kein Patch"), juce::Colours::grey);
 }
 

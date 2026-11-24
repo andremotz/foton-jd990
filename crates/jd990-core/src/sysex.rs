@@ -6,7 +6,7 @@
 //! Adressen sind 4 × 7 Bit. Intern wird eine Adresse als lineare Zahl
 //! geführt (`a3<<21 | a2<<14 | a1<<7 | a0`), damit Offsets addierbar sind.
 
-use crate::params::MODEL_ID;
+use crate::params::{MODEL_ID, PATCH_SIZE, PERF_SIZE};
 use std::fmt;
 
 pub const ROLAND: u8 = 0x41;
@@ -208,6 +208,94 @@ pub fn split_messages(bytes: &[u8]) -> Vec<&[u8]> {
     out
 }
 
+/// Schreibfreigabe (ADR-7, ADR-22, ADR-27) — die **einzige** Umsetzung der Freigabeliste.
+/// `jd990-midi` und der Host (über `jd990_dt1_allowed`) fragen beide hier.
+///
+/// Erlaubt sind nur:
+/// * `03 00 …` Temp-Patch, innerhalb von 486 Byte,
+/// * `02 00 …` bis `02 06 …` Temp-Patches der Parts 1–7, innerhalb von 486 Byte,
+/// * `01 00 …` Temp-Performance, innerhalb von 144 Byte,
+/// * `00 00 00 00` System mode mit genau einem Byte 0 (PATCH) oder 1 (PERFORMANCE).
+///
+/// Leere Daten und Datenbytes ≥ 0x80 sind nie erlaubt.
+pub fn write_allowed(address: Address, data: &[u8]) -> bool {
+    if address.0 >> 28 != 0 || data.is_empty() || data.iter().any(|&b| b >= 0x80) {
+        return false;
+    }
+    let [area, block, _, _] = address.to_bytes();
+    let end = address.patch_offset() + data.len();
+    match area {
+        0x03 => block == 0 && end <= PATCH_SIZE,
+        0x02 => block <= 6 && end <= PATCH_SIZE,
+        0x01 => block == 0 && end <= PERF_SIZE,
+        0x00 => address.0 == 0 && data.len() == 1 && data[0] <= 1,
+        _ => false,
+    }
+}
+
+/// Wie [`write_allowed`], aber auf genau einer vollständigen DT1-Nachricht (F0 … F7),
+/// so wie sie gesendet wird. Nachrichten, die sich nicht dekodieren lassen (Rahmen,
+/// Model-ID, Kommando, Prüfsumme), werden verweigert. Die Device-ID spielt keine Rolle.
+pub fn write_allowed_bytes(msg: &[u8]) -> bool {
+    Dt1::decode(msg).is_ok_and(|m| write_allowed(m.address, &m.data))
+}
+
+/// Ein Testvektor der Freigabeliste: eine Nachricht und ob sie gesendet werden darf.
+#[derive(Debug, Clone)]
+pub struct WriteVector {
+    pub name: &'static str,
+    pub msg: Vec<u8>,
+    pub allowed: bool,
+}
+
+/// Gemeinsame Testvektoren der Freigabeliste (ADR-27). Geprüft von `cargo test` in
+/// `jd990-core` und `jd990-midi` und — als erzeugter C-Header — vom C-Smoke-Test.
+pub fn write_vectors() -> Vec<WriteVector> {
+    let dt1 = |address: Address, data: &[u8]| Dt1 { device: DEFAULT_DEVICE, address, data: data.to_vec() }.encode();
+    let block = |area: u32, number: u32| Address(area << 21 | number << 14);
+    let mut bad_sum = dt1(Address::TEMP_PATCH, &[1]);
+    let n = bad_sum.len();
+    bad_sum[n - 2] ^= 0x01;
+    let mut other_unit = dt1(Address::TEMP_PATCH.offset(0x10), &[100]);
+    other_unit[2] = 0x1F;
+    let v = |name, msg, allowed| WriteVector { name, msg, allowed };
+    vec![
+        // erlaubt
+        v("temp patch, first byte", dt1(Address::TEMP_PATCH, &[0x41]), true),
+        v("temp patch, last byte", dt1(Address::TEMP_PATCH.offset(PATCH_SIZE - 1), &[0]), true),
+        v("temp patch, 256-byte chunk", dt1(Address::TEMP_PATCH, &[0; DT1_MAX_DATA]), true),
+        v("unit 32 (device id 0x1F)", other_unit, true),
+        v("part 1 patch", dt1(block(0x02, 0), &[1]), true),
+        v("part 7 patch, last byte", dt1(Address::perf_patch(6).offset(PATCH_SIZE - 1), &[1]), true),
+        v("temp performance, whole block", dt1(Address::TEMP_PERFORMANCE, &[0; PERF_SIZE]), true),
+        v("temp performance, single byte", dt1(Address::TEMP_PERFORMANCE.offset(0x64), &[50]), true),
+        v("system mode PATCH", dt1(Address::SYSTEM, &[0]), true),
+        v("system mode PERFORMANCE", dt1(Address::SYSTEM, &[1]), true),
+        // verweigert: Adressen
+        v("temp patch block 5 (03 05 00 00)", dt1(block(0x03, 5), &[1]), false),
+        v("temp patch past the end", dt1(Address::TEMP_PATCH.offset(PATCH_SIZE - 1), &[0, 0]), false),
+        v("part 8 has no patch block (02 07)", dt1(block(0x02, 7), &[0]), false),
+        v("part 1 patch past the end", dt1(block(0x02, 0).offset(PATCH_SIZE - 1), &[0, 0]), false),
+        v("temp performance offset 143 + 2 bytes", dt1(Address::TEMP_PERFORMANCE.offset(PERF_SIZE - 1), &[1, 2]), false),
+        v("temp performance block 1 (01 01)", dt1(block(0x01, 1), &[0]), false),
+        v("system mode RHYTHM", dt1(Address::SYSTEM, &[2]), false),
+        v("system mode, two bytes", dt1(Address::SYSTEM, &[1, 0]), false),
+        v("other system address", dt1(Address(1), &[0]), false),
+        v("rhythm (04)", dt1(block(0x04, 0), &[0]), false),
+        v("internal performance (05)", dt1(Address::internal_performance(0), &[0]), false),
+        v("internal patch (06)", dt1(Address::internal_patch(0), &[0]), false),
+        v("internal patch I:88", dt1(Address::internal_patch(63), &[0]), false),
+        v("card area (08)", dt1(block(0x08, 0), &[0]), false),
+        // verweigert: Rahmen
+        v("empty data", dt1(Address::TEMP_PATCH, &[]), false),
+        v("wrong checksum", bad_sum, false),
+        v("RQ1 instead of DT1", rq1(DEFAULT_DEVICE, Address::TEMP_PATCH, 1), false),
+        v("truncated (no F7)", { let mut m = dt1(Address::TEMP_PATCH, &[1]); m.pop(); m }, false),
+        v("not Roland", { let mut m = dt1(Address::TEMP_PATCH, &[1]); m[1] = 0x43; m }, false),
+        v("other model id", { let mut m = dt1(Address::TEMP_PATCH, &[1]); m[3] = 0x3D; m }, false),
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -262,5 +350,23 @@ mod tests {
         let n = m.len();
         m[n - 2] ^= 1;
         assert!(matches!(Dt1::decode(&m), Err(SysexError::Checksum { .. })));
+    }
+
+    #[test]
+    fn freigabeliste_testvektoren() {
+        let v = write_vectors();
+        assert!(v.iter().any(|x| x.allowed) && v.iter().any(|x| !x.allowed));
+        for x in &v {
+            assert_eq!(write_allowed_bytes(&x.msg), x.allowed, "{}", x.name);
+            if let Ok(m) = Dt1::decode(&x.msg) {
+                assert_eq!(write_allowed(m.address, &m.data), x.allowed, "{} (Adresse/Daten)", x.name);
+            }
+        }
+    }
+
+    #[test]
+    fn freigabe_verweigert_8_bit_daten_und_adressen_ueber_28_bit() {
+        assert!(!write_allowed(Address::TEMP_PATCH, &[0x80]));
+        assert!(!write_allowed(Address(Address::TEMP_PATCH.0 | 1 << 28), &[0]));
     }
 }

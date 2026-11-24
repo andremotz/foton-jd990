@@ -4,12 +4,14 @@
 //  * Parameteränderungen werden je Adresse zusammengefasst (last value wins)
 //    und mit Byte-Budget gesendet (ADR-8).
 //  * Ganzer Patch: nach dem Common-Block 150 ms Pause (Key-Range-Falle).
-//  * Geschrieben wird nur in die freigegebenen Temp-Bereiche — hier geprüft (ADR-7/22):
-//    03 Temp-Patch, 01 Temp-Performance, 02 00–06 Part-Patches, System mode 00 00 00 00.
+//  * Geschrieben wird nur in die freigegebenen Temp-Bereiche (ADR-7/22): 03 Temp-Patch,
+//    01 Temp-Performance, 02 00–06 Part-Patches, System mode 00 00 00 00. Die Regel steht
+//    nur im Rust-Kern; hier wird sie vor jedem Senden abgefragt (jd990_dt1_allowed, ADR-27).
 //  * Wartezeiten (P0, Logbuch 2026-10-03): nach Block-Anfang 150 ms, nach Modus-
 //    wechsel und Patchwahl eines Parts 700 ms (das Gerät lädt dann aus dem Speicher).
 
 #include <juce_audio_devices/juce_audio_devices.h>
+#include <atomic>
 #include <functional>
 #include <map>
 #include <set>
@@ -34,8 +36,12 @@ public:
     /** Allgemeine Leseanfrage (RQ1-Nachricht, erwartete Datenbytes). Anfragen laufen
         nacheinander; `done` bekommt die SysEx-Bytes, bei Zeitüberschreitung leer. */
     void request (std::vector<uint8_t> rq1, int size, std::function<void (const std::vector<uint8_t>&)> done);
-    /** Darf diese DT1-Nachricht an das Gerät? (Freigabeliste, ADR-7/22) */
+    /** Darf diese DT1-Nachricht an das Gerät? Fragt den Rust-Kern (ADR-7/22/27). */
     static bool allowedDt1 (const uint8_t* m, size_t len);
+    /** Verweigerte Nachricht (nicht gesendet) — auch im Release-Build sichtbar machen.
+        Wird asynchron auf dem Nachrichten-Thread gerufen; Argument: die Adressbytes. */
+    std::function<void (const juce::String& address)> onRefused;
+    int refusedCount() const { return refused; }
     /** true, solange gesendet wird oder vor < 1,5 s gesendet wurde, oder eine
         Leseanfrage läuft — dann keinen Abgleich starten. */
     bool busy() const;
@@ -60,6 +66,8 @@ private:
     void handleIncomingMidiMessage (juce::MidiInput*, const juce::MidiMessage&) override;
     void timerCallback() override;
     void sendRaw (const std::vector<uint8_t>& msg);
+    void reportRefused (const uint8_t* m, size_t len);
+    std::atomic<int> refused { 0 };
 
     std::unique_ptr<juce::MidiOutput> out;
     std::unique_ptr<juce::MidiInput> in;

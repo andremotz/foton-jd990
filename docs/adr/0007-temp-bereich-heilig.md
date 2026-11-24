@@ -52,3 +52,19 @@ Freigegeben von André am 2026-10-03:
 | sonst `00`, `04`–`0B` | System, Rhythm, interner Speicher, Karte | ⛔ unverändert |
 
 Kein Schreiben in den internen Speicher, auch nicht für Performances.
+
+---
+
+## Addendum 2026-11-24 — Where the whitelist lives (ADR-27)
+
+The table above is implemented **once**, in `jd990_core::sysex::write_allowed`
+(`write_allowed_bytes` for a complete DT1 message). Both send paths ask it before
+sending: `jd990-midi` (CLI, HIL tools) via `Device::allowed`, and the app's
+`DeviceLink` via the FFI function `jd990_dt1_allowed`. The two hand-written copies are
+gone. They had drifted: the Rust copy accepted `03 nn …` for any block `nn`, and
+`Device::write_temp` only checked the area byte.
+
+Also refused now: empty data and data bytes ≥ 0x80. The shared test vectors
+(`jd990_core::sysex::write_vectors`, generated as `crates/jd990-ffi/tests/write_vectors.h`)
+are checked by `cargo test` and the C smoke test. A refused write in the app is
+logged and shown in the sync status ("⛔ Schreiben verweigert …"), also in release builds.
