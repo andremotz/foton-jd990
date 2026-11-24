@@ -18,7 +18,7 @@ pub mod queue;
 
 use jd990_core::params::{PATCH_SIZE, PERF_SIZE};
 use jd990_core::{Patch, Performance};
-use jd990_core::sysex::{Address, Dt1, rq1};
+use jd990_core::sysex::{Address, Dt1, rq1, write_allowed};
 use midir::{Ignore, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
 use std::sync::mpsc::{Receiver, channel};
 use std::time::{Duration, Instant};
@@ -144,23 +144,10 @@ impl Device {
         Ok(Patch::from_bytes(data.try_into().unwrap()))
     }
 
-    /// Schreibfreigabe (ADR-7, ADR-22): Temp-Patch `03`, Temp-Performance `01`
-    /// (0–143), Part-Patches `02 00…06` — und im System-Bereich nur `00 00 00 00`
-    /// mit genau einem Byte PATCH (0) oder PERFORMANCE (1).
+    /// Schreibfreigabe (ADR-7, ADR-22) — fragt die einzige Umsetzung im Kern
+    /// ([`jd990_core::sysex::write_allowed`], ADR-27).
     pub fn allowed(address: Address, data: &[u8]) -> bool {
-        let part = (address.0 >> 14) & 0x7F;
-        let off = address.patch_offset();
-        match address.area() {
-            0x03 => off + data.len() <= PATCH_SIZE,
-            0x02 => part <= 6 && off + data.len() <= PATCH_SIZE,
-            0x01 => part == 0 && off + data.len() <= PERF_SIZE,
-            0x00 => address.0 == 0 && data.len() == 1 && data[0] <= 1,
-            _ => false,
-        }
-    }
-
-    fn guard(address: Address) -> Result<()> {
-        if address.area() == 0x03 { Ok(()) } else { Err(Error::Refused(address)) }
+        write_allowed(address, data)
     }
 
     fn guard_data(address: Address, data: &[u8]) -> Result<()> {
@@ -244,7 +231,7 @@ impl Device {
     fn write_temp_patch_once(&mut self, patch: &Patch, slow: u32) -> Result<()> {
         let msgs = patch.to_dt1(self.device_id, Address::TEMP_PATCH);
         for m in &msgs {
-            Self::guard(m.address)?;
+            Self::guard_data(m.address, &m.data)?;
         }
         for m in msgs {
             self.send(&m.encode())?;
@@ -258,7 +245,10 @@ impl Device {
 
     /// Schreibt Bytes an eine Temp-Adresse (z. B. ein Parameter aus `Patch::set`).
     pub fn write_temp(&mut self, address: Address, data: &[u8]) -> Result<()> {
-        Self::guard(address)?;
+        if address.area() != 0x03 {
+            return Err(Error::Refused(address));
+        }
+        Self::guard_data(address, data)?;
         let m = Dt1 { device: self.device_id, address, data: data.to_vec() };
         self.send(&m.encode())?;
         std::thread::sleep(self.dt1_gap);
@@ -283,5 +273,15 @@ mod tests {
         assert!(!Device::allowed(Address::internal_patch(0), &[0]));
         assert!(!Device::allowed(Address::internal_performance(0), &[0]));
         assert!(!Device::allowed(Address(0x04 << 21), &[0]), "Rhythm");
+    }
+
+    #[test]
+    fn freigabe_folgt_den_gemeinsamen_testvektoren() {
+        assert!(!Device::allowed(Address(0x03 << 21 | 5 << 14), &[1]), "03 05 00 00 (ADR-27)");
+        for v in jd990_core::sysex::write_vectors() {
+            if let Ok(m) = Dt1::decode(&v.msg) {
+                assert_eq!(Device::allowed(m.address, &m.data), v.allowed, "{}", v.name);
+            }
+        }
     }
 }

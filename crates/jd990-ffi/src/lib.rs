@@ -601,6 +601,23 @@ pub unsafe extern "C" fn jd990_patch_tone_swap(p: *const Jd990Patch, a: i32, b: 
 
 // ── Performance-Modus (ADR-22) ──────────────────────────────────────────────
 
+/// Darf diese DT1-Nachricht (genau eine, F0 … F7) an das Gerät? Die Freigabeliste
+/// (ADR-7/22) steht nur im Kern (`jd990_core::sysex::write_allowed_bytes`, ADR-27);
+/// der Host fragt vor jedem Senden hier.
+///
+/// Rückgabe: 1 = erlaubt, 0 = verweigert, `JD990_E_NULL` bei NULL.
+///
+/// # Safety
+/// `msg` zeigt auf `len` Bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn jd990_dt1_allowed(msg: *const u8, len: usize) -> i32 {
+    if msg.is_null() {
+        return E_NULL;
+    }
+    let bytes = unsafe { std::slice::from_raw_parts(msg, len) };
+    jd990_core::sysex::write_allowed_bytes(bytes) as i32
+}
+
 /// DT1-Nachrichten für den Temp-Patch (`03`) auf einen anderen Patch-Block umadressieren:
 /// `area` 3 = Temp (number 0) oder 2 = Performance-Part (number 0–6). Der Offset im
 /// Patch bleibt, die Prüfsumme wird neu berechnet. So gelten `jd990_patch_set`,

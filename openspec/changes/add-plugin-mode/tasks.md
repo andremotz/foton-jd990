@@ -18,7 +18,7 @@ Branch: `feature/plugin-mode`
 
 ## 3. Hub
 
-- [ ] 3.1 Hub-Prozess mit Warteschlange, Rate Limit, Freigabeliste, Leseanfragen (Code aus `DeviceLink`)
+- [ ] 3.1 Hub-Prozess mit Warteschlange, Rate Limit, Freigabeliste, Leseanfragen (Code aus `DeviceLink`); Freigabe nur über `jd990_dt1_allowed`, keine eigene Kopie (ADR-27)
 - [ ] 3.2 Protokoll: anmelden (Ziel), senden, lesen, Gerätestatus, Ziel-Besitz, abmelden
 - [ ] 3.3 `HubClient` als zweite `DeviceChannel`-Implementierung
 - [ ] 3.4 Start bei erstem Client, Ende nach letztem; Absturz eines Clients räumt dessen Ziel frei

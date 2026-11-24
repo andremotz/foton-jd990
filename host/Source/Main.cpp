@@ -138,6 +138,13 @@ public:
             for (int i = 0; i < undos; ++i) mc->undo();
             if (send) mc->sendToDevice();
         });
+        // --refusetest: eine nicht freigegebene DT1 (03 05 00 00, ADR-27) über denselben Weg
+        // wie die Bedienung (DeviceLink::queueParam) — die Ablehnung muss sichtbar werden.
+        if (args.contains ("--refusetest"))
+            juce::Timer::callAfterDelay (delay + 100, [mc] {
+                const uint8_t refused[] = { 0xF0, 0x41, 0x10, 0x57, 0x12, 0x03, 0x05, 0x00, 0x00, 0x01, 0x77, 0xF7 };
+                mc->getModel().link.queueParam (refused, sizeof refused);
+            });
         if (auto unit = value ("--unit").getIntValue(); unit >= 17 && unit <= 32) mc->getModel().setUnitNumber (unit);
         bool history = args.contains ("--history");
         juce::StringArray perfSets;

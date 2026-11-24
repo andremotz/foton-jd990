@@ -87,6 +87,8 @@ Jd990Patch *jd990_patch_tone_swap(const Jd990Patch *p, int32_t a, int32_t b);
 
 /* ── Performance-Modus (ADR-22) ──────────────────────────────────────────── */
 /* Patch-DT1 (Temp 03) auf Temp (area 3) oder Performance-Part (area 2, number 0–6) umadressieren */
+/* Freigabeliste (ADR-7/22/27): darf genau diese eine DT1-Nachricht gesendet werden? 1 ja, 0 nein */
+int32_t     jd990_dt1_allowed(const uint8_t *msg, size_t len);
 int32_t     jd990_dt1_retarget(const uint8_t *msgs, size_t len, uint8_t area, uint8_t number, uint8_t *out, size_t cap);
 int32_t     jd990_system_mode_dt1(uint8_t mode /*0 PATCH, 1 PERFORMANCE*/, uint8_t *out, size_t cap);
 int32_t     jd990_rq1_system(uint8_t *out, size_t cap);                      /* 38 Byte, Byte 0 = Modus */

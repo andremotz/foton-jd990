@@ -45,8 +45,9 @@ look from the iconic front panel of the JD-800.
 The JD-990's patch memory is battery-backed RAM from 1993. The editor therefore
 **never writes to internal memory.** It only writes to the device's temporary
 edit buffers (temp patch, temp performance and the seven part patches) plus the
-patch/performance mode switch. This is enforced by an address whitelist in both
-the Rust MIDI layer and the app. Back up your device first anyway:
+patch/performance mode switch. This is enforced by a single address whitelist in
+the Rust core, which both the command line tool and the app check before every
+message they send. Back up your device first anyway:
 
 ```bash
 cargo run -q --release -p jd990-cli -- backup my-jd990-backup   # read-only
